@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>disable</Nullable>
+        <AssemblyName>UseCases</AssemblyName>
+        <RootNamespace>UseCases</RootNamespace>
+        <LangVersion>default</LangVersion>
+    </PropertyGroup>
+    
+    <ItemGroup>
+      <PackageReference Include="MailKit" Version="4.3.0" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0">
+        <PrivateAssets>all</PrivateAssets>
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Entities\Entities.csproj" />
+      <ProjectReference Include="..\UseCases.Common\UseCases.Common.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Include="..\..\Common\UseCases.Common\Security\HashPassword.cs">
+        <Link>Security\HashPassword.cs</Link>
+      </Compile>
+      <Compile Include="..\..\Common\UseCases.Common\Security\IHashPassword.cs">
+        <Link>Security\IHashPassword.cs</Link>
+      </Compile>
+      <Compile Update="Login.cs">
+        <Link>Security\Login.cs</Link>
+      </Compile>
+      <Compile Update="ILogin.cs">
+        <Link>Security\Security\ILogin.cs</Link>
+      </Compile>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Externals\" />
+    </ItemGroup>
+
+</Project>
