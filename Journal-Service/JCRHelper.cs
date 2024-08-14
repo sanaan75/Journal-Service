@@ -212,6 +212,31 @@ public class JCRHelper
         return list;
     }
 
+    static List<MIFModel> ReadVezaratinExcelFile(string filePath)
+    {
+        var list = new List<MIFModel>();
+
+        FileInfo fileInfo = new FileInfo(filePath);
+        using (ExcelPackage package = new ExcelPackage(fileInfo))
+        {
+            ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
+            int rowCount = worksheet.Dimension.Rows;
+
+            for (int row = 2; row <= rowCount; row++)
+            {
+                var model = new MIFModel
+                {
+                    Title = worksheet.Cells[row, 1].Text,
+                    Group = worksheet.Cells[row, 2].Text,
+                    MIF = decimal.TryParse(worksheet.Cells[row, 3].Text, out decimal mifValue) ? mifValue : 0,
+                };
+                list.Add(model);
+            }
+        }
+
+        return list;
+    }
+    
     static List<AIFModel> Read_AIF_ExcelFile(string filePath)
     {
         var list = new List<AIFModel>();
