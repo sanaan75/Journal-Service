@@ -9,12 +9,12 @@ public class JCRHelper
     public void InsertJournals(string filePath, int year)
     {
         List<JCRModel> journals = ReadJCRExcelFile(filePath);
-
         using var db = new AppDbContext();
 
         foreach (var item in journals)
         {
-            var categories = item.Categories.Split(",");
+            if (string.IsNullOrWhiteSpace(item.Title))
+                continue;
 
             var journal = db.Set<Journal>().FirstOrDefault(i =>
                 i.NormalizedTitle == item.Title.NormalizeTitle() || i.Issn == item.ISSN.CleanIssn());
@@ -31,62 +31,53 @@ public class JCRHelper
                         EIssn = item.EISSN.CleanIssn()
                     }).Entity;
 
-                    foreach (var category in categories)
-                    {
-                        if (string.IsNullOrWhiteSpace(category))
-                            continue;
+                    if (string.IsNullOrWhiteSpace(item.Category))
+                        continue;
 
-                        db.Set<Category>().Add(new Category
-                        {
-                            Journal = newJournal,
-                            Title = category.Trim(),
-                            NormalizedTitle = category.NormalizeTitle(),
-                            Index = JournalIndex.JCR,
-                            QRank = GetQrank(item.QRank),
-                            If = item.IF,
-                            Year = year,
-                            Customer = "jiro"
-                        });
-                    }
+                    db.Set<Category>().Add(new Category
+                    {
+                        Journal = newJournal,
+                        Title = item.Category.Trim().ConvertArabicToPersian(),
+                        NormalizedTitle = item.Category.NormalizeTitle().ConvertArabicToPersian(),
+                        Index = JournalIndex.JCR,
+                        QRank = GetQrank(item.QRank),
+                        If = item.IF,
+                        Year = year,
+                        Customer = "Jiro"
+                    });
                 }
                 else
                 {
                     journal.Issn = item.ISSN.CleanIssn();
                     journal.EIssn = item.EISSN.CleanIssn();
 
-                    foreach (var category in categories)
+                    if (string.IsNullOrWhiteSpace(item.Category))
+                        continue;
+
+                    var record = db.Set<Category>()
+                        .Where(i => i.JournalId == journal.Id)
+                        .Where(i => i.Year == year)
+                        .Where(i => i.Index == JournalIndex.JCR)
+                        .FirstOrDefault(i => i.NormalizedTitle == item.Category.NormalizeTitle());
+
+                    if (record != null)
                     {
-                        if (string.IsNullOrWhiteSpace(category))
-                            continue;
-
-                        if (string.IsNullOrWhiteSpace(category))
-                            continue;
-
-                        var record = db.Set<Category>()
-                            .Where(i => i.JournalId == journal.Id)
-                            .Where(i => i.Year == year)
-                            .Where(i => i.Index == JournalIndex.JCR)
-                            .FirstOrDefault(i => i.NormalizedTitle == category.NormalizeTitle());
-
-                        if (record != null)
+                        record.If = item.IF;
+                        record.QRank = GetQrank(item.QRank);
+                    }
+                    else
+                    {
+                        db.Set<Category>().Add(new Category
                         {
-                            record.If = item.IF;
-                            record.QRank = GetQrank(item.QRank);
-                        }
-                        else
-                        {
-                            db.Set<Category>().Add(new Category
-                            {
-                                JournalId = journal.Id,
-                                Title = category.Trim(),
-                                NormalizedTitle = category.NormalizeTitle(),
-                                Index = JournalIndex.JCR,
-                                QRank = GetQrank(item.QRank),
-                                If = item.IF,
-                                Year = year,
-                                Customer = "jiro"
-                            });
-                        }
+                            JournalId = journal.Id,
+                            Title = item.Category.Trim(),
+                            NormalizedTitle = item.Category.NormalizeTitle().ConvertArabicToPersian(),
+                            Index = JournalIndex.JCR,
+                            QRank = GetQrank(item.QRank),
+                            If = item.IF,
+                            Year = year,
+                            Customer = "Jiro"
+                        });
                     }
                 }
 
@@ -97,13 +88,75 @@ public class JCRHelper
                 Console.WriteLine(ex);
             }
 
-            Console.WriteLine($"{item.Title}, {item.Categories}, {item.IF}, {item.ISSN}");
+            Console.WriteLine($"{item.Title}, {item.Category}, {item.IF}, {item.ISSN}");
         }
     }
 
-
-    public void InsertCategories(string path)
+    public void InsertCategories(string filePath, int year)
     {
+        List<MIFModel> categories = ReadMIFExcelFile(filePath);
+
+        using var db = new AppDbContext();
+
+        foreach (var category in categories)
+        {
+            try
+            {
+                var items = db.Set<Category>()
+                    .Where(i => i.Year == year)
+                    .Where(i => i.Index == JournalIndex.JCR)
+                    .Where(i => i.NormalizedTitle == category.Title.NormalizeTitle())
+                    .ToList();
+
+                foreach (var item in items)
+                {
+                    item.Mif = category.MIF;
+                }
+
+                Console.WriteLine($"{category.Title} - {category.MIF}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                throw;
+            }
+        }
+
+        db.Save();
+    }
+
+    public void InsertAIF(string filePath, int year)
+    {
+        List<AIFModel> categories = Read_AIF_ExcelFile(filePath);
+
+        using var db = new AppDbContext();
+
+        foreach (var category in categories)
+        {
+            try
+            {
+                var items = db.Set<Category>()
+                    .Where(i => i.Year == year)
+                    .Where(i => i.Index == JournalIndex.JCR)
+                    .Where(i => i.NormalizedTitle == category.Title.NormalizeTitle())
+                    .ToList();
+
+                foreach (var item in items)
+                {
+                    item.Mif = category.MIF;
+                    item.Aif = category.AIF;
+                }
+
+                Console.WriteLine($"{category.Title} - Mif : {category.MIF} - Aif : " + category.AIF);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                //throw;
+            }
+        }
+
+        db.Save();
     }
 
     static List<JCRModel> ReadJCRExcelFile(string filePath)
@@ -123,11 +176,61 @@ public class JCRHelper
                     Title = worksheet.Cells[row, 1].Text,
                     ISSN = worksheet.Cells[row, 2].Text,
                     EISSN = worksheet.Cells[row, 3].Text,
-                    Categories = worksheet.Cells[row, 4].Text,
+                    Category = worksheet.Cells[row, 4].Text,
                     IF = decimal.TryParse(worksheet.Cells[row, 5].Text, out decimal ifValue) ? ifValue : 0,
                     QRank = worksheet.Cells[row, 6].Text,
                 };
                 list.Add(journal);
+            }
+        }
+
+        return list;
+    }
+
+    static List<MIFModel> ReadMIFExcelFile(string filePath)
+    {
+        var list = new List<MIFModel>();
+
+        FileInfo fileInfo = new FileInfo(filePath);
+        using (ExcelPackage package = new ExcelPackage(fileInfo))
+        {
+            ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
+            int rowCount = worksheet.Dimension.Rows;
+
+            for (int row = 2; row <= rowCount; row++)
+            {
+                var model = new MIFModel
+                {
+                    Title = worksheet.Cells[row, 1].Text,
+                    Group = worksheet.Cells[row, 2].Text,
+                    MIF = decimal.TryParse(worksheet.Cells[row, 3].Text, out decimal mifValue) ? mifValue : 0,
+                };
+                list.Add(model);
+            }
+        }
+
+        return list;
+    }
+
+    static List<AIFModel> Read_AIF_ExcelFile(string filePath)
+    {
+        var list = new List<AIFModel>();
+
+        FileInfo fileInfo = new FileInfo(filePath);
+        using (ExcelPackage package = new ExcelPackage(fileInfo))
+        {
+            ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
+            int rowCount = worksheet.Dimension.Rows;
+
+            for (int row = 2; row <= rowCount; row++)
+            {
+                var model = new AIFModel
+                {
+                    Title = worksheet.Cells[row, 1].Text,
+                    MIF = decimal.TryParse(worksheet.Cells[row, 2].Text, out decimal mifValue) ? mifValue : 0,
+                    AIF = decimal.TryParse(worksheet.Cells[row, 3].Text, out decimal aifValue) ? mifValue : 0,
+                };
+                list.Add(model);
             }
         }
 
@@ -156,8 +259,22 @@ public class JCRHelper
         public string Title { get; set; }
         public string ISSN { get; set; }
         public string EISSN { get; set; }
+        public string Category { get; set; }
         public decimal IF { get; set; }
         public string QRank { get; set; }
-        public string Categories { get; set; }
+    }
+
+    public class MIFModel
+    {
+        public string Title { get; set; }
+        public string Group { get; set; }
+        public decimal MIF { get; set; }
+    }
+
+    public class AIFModel
+    {
+        public string Title { get; set; }
+        public decimal MIF { get; set; }
+        public decimal AIF { get; set; }
     }
 }

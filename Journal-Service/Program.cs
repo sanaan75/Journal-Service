@@ -3,16 +3,43 @@ using OfficeOpenXml;
 
 Console.WriteLine("start app");
 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+int year = 2023;
 
-string filePath = @"C:\Works\Journals\isc\2020.xlsx";
+// var scopusHelper = new ScopusHelper();
+// string scopus_path1 = @"C:\Works\Journals\scopus\" + year + "\\" + year + "-a.xlsx";
+// scopusHelper.InsertScopusFromSJR(scopus_path1, year);
+// Console.WriteLine("Finish Scopus " + year + " A");
+//
+// string scopus_path2 = @"C:\Works\Journals\scopus\" + year + "\\" + year + "-b.xlsx";
+// scopusHelper.InsertScopusFromSJR(scopus_path2, year);
+// Console.WriteLine("Finish Scopus " + year + " B");
+//
+// string scopus_path3 = @"C:\Works\Journals\scopus\" + year + "\\" + year + "-c.xlsx";
+// scopusHelper.InsertScopusFromSJR(scopus_path3, year);
+// Console.WriteLine("Finish Scopus " + year + " C");
+
 
 var jcrHelper = new JCRHelper();
-jcrHelper.InsertJournals(filePath, 2023);
+string jcr_Path = @"C:\Works\Journals\jcr\Clarivate\" + year + "\\" + year + "-jcr-a.xlsx";
+jcrHelper.InsertJournals(jcr_Path, year);
+Console.WriteLine("Finish JCR " + year);
+
+
+string jcr_Path2 = @"C:\Works\Journals\jcr\Clarivate\" + year + "\\" + year + "-jcr-b.xlsx";
+jcrHelper.InsertJournals(jcr_Path2, year);
+Console.WriteLine("Finish JCR " + year);
+
+
+string mif_Path = @"C:\Works\Journals\jcr\Clarivate\" + year + "\\" + year + "-aif.xlsx";
+jcrHelper.InsertCategories(mif_Path, year);
+Console.WriteLine("Finish AIF " + year);
 
 // var iscHelper = new ISCHelper();
-// iscHelper.InsertIsc(filePath,2022);
-
+// string isc_Path = @"C:\Works\Journals\isc\" + year + ".xlsx";
+// iscHelper.InsertIsc(isc_Path, year);
+// Console.WriteLine("finish ISC " + year);
 Console.ReadKey();
+
 
 //using var db = new AppDbContext();
 //var setting = db.Set<Setting>().Single();

@@ -34,7 +34,7 @@ public class AppDbContext : DbContext, IDb
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseSqlServer("Data Source=192.168.1.2;Initial Catalog=Banks;uid=sanaan;pwd=Sanaan51!@;TrustServerCertificate=True");
+        optionsBuilder.UseSqlServer("Data Source=.;Initial Catalog=Banks;Integrated security=True;TrustServerCertificate=True");
     }
 
     public void Save()

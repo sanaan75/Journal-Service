@@ -15,7 +15,6 @@ public class ISCHelper
         foreach (var item in journals)
         {
             var categories = item.Categories.Split(",");
-
             var journal = db.Set<Journal>().FirstOrDefault(i =>
                 i.NormalizedTitle == item.Title.NormalizeTitle() || i.Issn == item.ISSN.CleanIssn());
 
@@ -60,7 +59,7 @@ public class ISCHelper
                             QRank = GetQrank(qRank),
                             If = item.IF,
                             Year = year,
-                            Customer = "jiro"
+                            Customer = "Jiro"
                         });
                     }
                 }
@@ -112,7 +111,7 @@ public class ISCHelper
                                 QRank = GetQrank(qRank),
                                 If = item.IF,
                                 Year = year,
-                                Customer = "jiro"
+                                Customer = "Jiro"
                             });
                         }
                     }
