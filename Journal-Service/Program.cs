@@ -5,6 +5,32 @@ Console.WriteLine("start app");
 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 int year = 2023;
 
+var journalHelper = new JournalHelper();
+string path = @"D:\Jiro\Journals\journal-countries.xlsx";
+journalHelper.ImportCountries(path);
+
+
+// var jcrHelper = new JCRHelper();
+// string jcr_Path = @"D:\Jiro\Journals\jcr\" + year + "-mj.xlsx";
+// jcrHelper.ImportData(jcr_Path, year);
+// Console.WriteLine("Finish JCR " + year);
+//
+//
+// string mif_Path = @"D:\Jiro\Journals\jcr\Clarivate\" + year + "\\" + year + "-aif.xlsx";
+// jcrHelper.InsertCategories(mif_Path, year);
+// Console.WriteLine("Finish AIF " + year);
+
+// string scopus2_path = @"D:\Jiro\Journals\scopus.xlsx";
+// var scopus2Helper = new Scopus2Helper();
+// scopus2Helper.ImportData(scopus2_path);
+
+// var vezaratinHelper = new VezaratinHelper();
+// vezaratinHelper.ImportData(@"D:\Jiro\Journals\vezaratin.xlsx");
+
+Console.ReadKey();
+
+//journalHelper.FetchJournal(setting.Offset);
+
 // var scopusHelper = new ScopusHelper();
 // string scopus_path1 = @"C:\Works\Journals\scopus\" + year + "\\" + year + "-a.xlsx";
 // scopusHelper.InsertScopusFromSJR(scopus_path1, year);
@@ -19,26 +45,10 @@ int year = 2023;
 // Console.WriteLine("Finish Scopus " + year + " C");
 
 
-var jcrHelper = new JCRHelper();
-string jcr_Path = @"C:\Works\Journals\jcr\Clarivate\" + year + "\\" + year + "-jcr-a.xlsx";
-jcrHelper.InsertJournals(jcr_Path, year);
-Console.WriteLine("Finish JCR " + year);
-
-
-string jcr_Path2 = @"C:\Works\Journals\jcr\Clarivate\" + year + "\\" + year + "-jcr-b.xlsx";
-jcrHelper.InsertJournals(jcr_Path2, year);
-Console.WriteLine("Finish JCR " + year);
-
-
-string mif_Path = @"C:\Works\Journals\jcr\Clarivate\" + year + "\\" + year + "-aif.xlsx";
-jcrHelper.InsertCategories(mif_Path, year);
-Console.WriteLine("Finish AIF " + year);
-
 // var iscHelper = new ISCHelper();
 // string isc_Path = @"C:\Works\Journals\isc\" + year + ".xlsx";
 // iscHelper.InsertIsc(isc_Path, year);
 // Console.WriteLine("finish ISC " + year);
-Console.ReadKey();
 
 
 //using var db = new AppDbContext();

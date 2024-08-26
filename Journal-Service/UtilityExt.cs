@@ -17,6 +17,14 @@ public static class UtilityExt
         return issn.Trim().Replace("-", String.Empty).ToUpper();
     }
     
+    public static string ToTitleCase(this string input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return input;
+
+        return char.ToUpper(input[0]) + input.Substring(1).ToLower();
+    }
+    
     private static readonly Dictionary<char, char> arabicToPersianMap = new Dictionary<char, char>
     {
         {'ي', 'ی'},

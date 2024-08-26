@@ -6,7 +6,7 @@ namespace Journal_Service;
 
 public class VezaratinHelper
 {
-    public void InsertCategories(string filePath)
+    public void ImportData(string filePath)
     {
         List<DataModel> items = ReadVezaratinExcelFile(filePath);
 
@@ -25,7 +25,7 @@ public class VezaratinHelper
                 2022
             };
 
-            var journal = db.Set<Journal>().FirstOrDefault(i =>
+            var journal = db.Query<Journal>().FirstOrDefault(i =>
                 i.NormalizedTitle == item.Title.NormalizeTitle() || i.Issn == item.ISSN.CleanIssn() ||
                 i.EIssn == item.EISSN.CleanIssn());
 
@@ -35,9 +35,19 @@ public class VezaratinHelper
                 {
                     if (string.IsNullOrWhiteSpace(item.Category))
                         continue;
-                    
+
                     foreach (var year in years)
                     {
+                        var dup = db.Query<Category>()
+                            .Where(i => i.Journal.NormalizedTitle == item.Title.NormalizeTitle() ||
+                                        i.Journal.Issn == item.ISSN.CleanIssn() ||
+                                        i.Journal.EIssn == item.EISSN.CleanIssn())
+                            .Where(i => i.Year == year)
+                            .Any(i => i.Index == JournalIndex.Vezaratin);
+
+                        if (dup == true)
+                            continue;
+
                         var category = new Category
                         {
                             Journal = journal,
@@ -71,6 +81,11 @@ public class VezaratinHelper
                                 break;
                             }
                         }
+
+                        db.Set<Category>().Add(category);
+                        db.Save();
+
+                        Console.WriteLine(category.Year + "  " + category.Title + " : " + category.Value.ToString());
                     }
                 }
                 else
@@ -88,6 +103,16 @@ public class VezaratinHelper
 
                     foreach (var year in years)
                     {
+                        var dup = db.Query<Category>()
+                            .Where(i => i.Journal.NormalizedTitle == item.Title.NormalizeTitle() ||
+                                        i.Journal.Issn == item.ISSN.CleanIssn() ||
+                                        i.Journal.EIssn == item.EISSN.CleanIssn())
+                            .Where(i => i.Year == year)
+                            .Any(i => i.Index == JournalIndex.Vezaratin);
+
+                        if (dup == true)
+                            continue;
+
                         var category = new Category
                         {
                             Journal = newJournal,
@@ -121,17 +146,20 @@ public class VezaratinHelper
                                 break;
                             }
                         }
+
+                        db.Set<Category>().Add(category);
+                        db.Save();
+                        Console.WriteLine(category.Year + "  " + category.Title + " : " + category.Value.ToString());
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex);
-                throw;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(ex.Message);
+                Console.ForegroundColor = ConsoleColor.White;
             }
         }
-
-        db.Save();
     }
 
     static List<DataModel> ReadVezaratinExcelFile(string filePath)

@@ -6,7 +6,7 @@ namespace Journal_Service;
 
 public class JCRHelper
 {
-    public void InsertJournals(string filePath, int year)
+    public void ImportData(string filePath, int year)
     {
         List<JCRModel> journals = ReadJCRExcelFile(filePath);
         using var db = new AppDbContext();
@@ -40,7 +40,7 @@ public class JCRHelper
                         Title = item.Category.Trim().ConvertArabicToPersian(),
                         NormalizedTitle = item.Category.NormalizeTitle().ConvertArabicToPersian(),
                         Index = JournalIndex.JCR,
-                        QRank = GetQrank(item.QRank),
+                        QRank = GetQrank(item.Quartile),
                         If = item.IF,
                         Year = year,
                         Customer = "Jiro"
@@ -63,7 +63,7 @@ public class JCRHelper
                     if (record != null)
                     {
                         record.If = item.IF;
-                        record.QRank = GetQrank(item.QRank);
+                        record.QRank = GetQrank(item.Quartile);
                     }
                     else
                     {
@@ -73,7 +73,7 @@ public class JCRHelper
                             Title = item.Category.Trim(),
                             NormalizedTitle = item.Category.NormalizeTitle().ConvertArabicToPersian(),
                             Index = JournalIndex.JCR,
-                            QRank = GetQrank(item.QRank),
+                            QRank = GetQrank(item.Quartile),
                             If = item.IF,
                             Year = year,
                             Customer = "Jiro"
@@ -174,11 +174,14 @@ public class JCRHelper
                 var journal = new JCRModel
                 {
                     Title = worksheet.Cells[row, 1].Text,
-                    ISSN = worksheet.Cells[row, 2].Text,
-                    EISSN = worksheet.Cells[row, 3].Text,
-                    Category = worksheet.Cells[row, 4].Text,
-                    IF = decimal.TryParse(worksheet.Cells[row, 5].Text, out decimal ifValue) ? ifValue : 0,
-                    QRank = worksheet.Cells[row, 6].Text,
+                    Publisher = worksheet.Cells[row, 2].Text,
+                    ISSN = worksheet.Cells[row, 3].Text,
+                    EISSN = worksheet.Cells[row, 4].Text,
+                    Category = worksheet.Cells[row, 5].Text,
+                    Edition = worksheet.Cells[row, 6].Text,
+                    IF = decimal.TryParse(worksheet.Cells[row, 7].Text, out decimal ifValue) ? ifValue : 0,
+                    Quartile = worksheet.Cells[row, 8].Text,
+                    JIFRank = worksheet.Cells[row, 9].Text,
                 };
                 list.Add(journal);
             }
@@ -236,7 +239,7 @@ public class JCRHelper
 
         return list;
     }
-    
+
     static List<AIFModel> Read_AIF_ExcelFile(string filePath)
     {
         var list = new List<AIFModel>();
@@ -282,11 +285,14 @@ public class JCRHelper
     public class JCRModel
     {
         public string Title { get; set; }
+        public string Publisher { get; set; }
         public string ISSN { get; set; }
         public string EISSN { get; set; }
         public string Category { get; set; }
+        public string Edition { get; set; }
         public decimal IF { get; set; }
-        public string QRank { get; set; }
+        public string Quartile { get; set; }
+        public string JIFRank { get; set; }
     }
 
     public class MIFModel

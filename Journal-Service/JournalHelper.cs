@@ -1,9 +1,10 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Net.Http.Headers;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using HtmlAgilityPack;
 using Journal_Service.Data;
 using Journal_Service.Entities;
-using Microsoft.IdentityModel.Tokens;
-using Newtonsoft.Json.Linq;
+using OfficeOpenXml;
 
 namespace Journal_Service;
 
@@ -16,6 +17,212 @@ public class JournalHelper
     public JournalHelper()
     {
     }
+
+    public void ImportCountries(string path)
+    {
+        List<CountryModel> countries = ReadExcelFile(path);
+        using var db = new AppDbContext();
+
+        foreach (var item in countries)
+        {
+            if (string.IsNullOrWhiteSpace(item.Country) == true)
+                continue;
+
+            var journal = db.Set<Journal>().FirstOrDefault(i =>
+                item.Title.NormalizeTitle() == i.NormalizedTitle || i.Issn == item.Issn.CleanIssn());
+
+            if (journal is null)
+                continue;
+
+            journal.Country = item.Country.ToTitleCase();
+
+            Console.WriteLine(journal.Title + " -> " + journal.Country);
+        }
+
+        db.Save();
+    }
+
+    static List<CountryModel> ReadExcelFile(string filePath)
+    {
+        var list = new List<CountryModel>();
+
+        FileInfo fileInfo = new FileInfo(filePath);
+        using (ExcelPackage package = new ExcelPackage(fileInfo))
+        {
+            ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
+            int rowCount = worksheet.Dimension.Rows;
+
+            for (int row = 2; row <= rowCount; row++)
+            {
+                var item = new JournalHelper.CountryModel
+                {
+                    Title = worksheet.Cells[row, 1].Text,
+                    Issn = worksheet.Cells[row, 2].Text,
+                    Country = worksheet.Cells[row, 3].Text,
+                };
+                list.Add(item);
+            }
+        }
+
+        return list;
+    }
+
+    public class CountryModel
+    {
+        public string Title { get; set; }
+        public string Issn { get; set; }
+        public string Country { get; set; }
+    }
+
+    public async Task<string> GetJournalCountryAsync(string issn)
+    {
+        string apiUrl = $"https://portal.issn.org/resource/ISSN/{issn}";
+        string country = null;
+
+        using (HttpClient client = new HttpClient())
+        {
+            try
+            {
+                client.DefaultRequestHeaders.Accept.Clear();
+                client.DefaultRequestHeaders.Accept.Add(
+                    new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+                HttpResponseMessage response = await client.GetAsync(apiUrl);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    string jsonResponse = await response.Content.ReadAsStringAsync();
+
+                    JsonDocument jsonDocument = JsonDocument.Parse(jsonResponse);
+
+                    if (jsonDocument.RootElement.TryGetProperty("country", out JsonElement countryElement))
+                        country = countryElement.GetString();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+            }
+        }
+
+        return country;
+    }
+
+    // string url = "https://example.com/journals"; // Placeholder URL
+    // List<string> journalList = await GetJournalList(url);
+    //
+    //     // Print the list of journals
+    //     foreach (var journal in journalList)
+    // {
+    //     Console.WriteLine(journal);
+    // }
+
+    // string dateString = "01 March 2018";
+    // DateTime date = DateTime.Parse(dateString);
+    // Console.WriteLine(date);
+
+
+    static async Task<List<string>> GetJournalList(string url)
+    {
+        List<string> journals = new List<string>();
+
+        try
+        {
+            using HttpClient client = new HttpClient();
+            string html = await client.GetStringAsync(url);
+
+            HtmlDocument document = new HtmlDocument();
+            document.LoadHtml(html);
+
+            var journalNodes = document.DocumentNode.SelectNodes("//div[@class='journal-title']/a");
+
+            if (journalNodes != null)
+            {
+                foreach (var node in journalNodes)
+                {
+                    string journalTitle = node.InnerText.Trim();
+                    journals.Add(journalTitle);
+                }
+            }
+            else
+            {
+                Console.WriteLine("No journals found on the page.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+
+        return journals;
+    }
+
+
+    public async Task FetchFromClarivate()
+    {
+        string username = "nikravesh100@gmail.com";
+        string password = "meshK!1350:-B";
+        string apiEndpoint = "https://api.clarivate.com/jcr/journals";
+
+        string basicAuthValue = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{username}:{password}"));
+
+        using (HttpClient client = new HttpClient())
+        {
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", basicAuthValue);
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            try
+            {
+                HttpResponseMessage response = await client.GetAsync(apiEndpoint);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    string jsonResponse = await response.Content.ReadAsStringAsync();
+                    var journalData = JsonSerializer.Deserialize<JournalData[]>(jsonResponse);
+
+                    foreach (var journal in journalData)
+                    {
+                        Console.Write($"Journal Name: {journal.Name} \t");
+                        Console.Write($"ISSN: {journal.ISSN} \t");
+                        Console.Write($"eISSN: {journal.eISSN} \t");
+                        Console.Write($"Category: {journal.Category} \t");
+                        Console.Write($"Edition: {journal.Edition} \t");
+                        Console.Write($"Total Citations: {journal.TotalCitations} \t");
+                        Console.Write($"2023 JIF: {journal.JIF} \t");
+                        Console.Write($"JIF Quartile: {journal.JIFQuartile} \t");
+                        Console.Write($"JCI Rank: {journal.JCIRank} \t");
+                        Console.Write($"JCI Quartile: {journal.JCIQuartile} \t");
+                        Console.Write($"JIF Rank: {journal.JIFRank} \t");
+                        Console.WriteLine("---------------------------------------------------");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"Failed to retrieve data. Status code: {response.StatusCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
+        }
+    }
+
+    public class JournalData
+    {
+        public string Name { get; set; }
+        public string ISSN { get; set; }
+        public string eISSN { get; set; }
+        public string Category { get; set; }
+        public string Edition { get; set; }
+        public int TotalCitations { get; set; }
+        public double JIF { get; set; }
+        public string JIFQuartile { get; set; }
+        public string JCIRank { get; set; }
+        public string JCIQuartile { get; set; }
+        public string JIFRank { get; set; }
+    }
+
 
     public async Task FixData()
     {
