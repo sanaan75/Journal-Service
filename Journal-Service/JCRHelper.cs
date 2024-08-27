@@ -8,16 +8,17 @@ public class JCRHelper
 {
     public void ImportData(string filePath, int year)
     {
-        List<JCRModel> journals = ReadJCRExcelFile(filePath);
+        List<JCRModel> items = ReadJCRExcelFile(filePath);
         using var db = new AppDbContext();
 
-        foreach (var item in journals)
+        foreach (var item in items)
         {
-            if (string.IsNullOrWhiteSpace(item.Title))
+            if (string.IsNullOrWhiteSpace(item.Title) || string.IsNullOrWhiteSpace(item.Category) || item.IF is null)
                 continue;
 
             var journal = db.Set<Journal>().FirstOrDefault(i =>
-                i.NormalizedTitle == item.Title.NormalizeTitle() || i.Issn == item.ISSN.CleanIssn());
+                i.NormalizedTitle == item.Title.NormalizeTitle() || i.Issn == item.ISSN.CleanIssn() ||
+                i.EIssn == item.EISSN.CleanIssn());
 
             try
             {
@@ -31,9 +32,6 @@ public class JCRHelper
                         EIssn = item.EISSN.CleanIssn()
                     }).Entity;
 
-                    if (string.IsNullOrWhiteSpace(item.Category))
-                        continue;
-
                     db.Set<Category>().Add(new Category
                     {
                         Journal = newJournal,
@@ -43,16 +41,15 @@ public class JCRHelper
                         QRank = GetQrank(item.Quartile),
                         If = item.IF,
                         Year = year,
-                        Customer = "Jiro"
+                        Customer = "Jiro",
+                        Edition = item.Edition.Trim()
                     });
                 }
                 else
                 {
                     journal.Issn = item.ISSN.CleanIssn();
                     journal.EIssn = item.EISSN.CleanIssn();
-
-                    if (string.IsNullOrWhiteSpace(item.Category))
-                        continue;
+                    journal.Publisher = item.Publisher.Trim();
 
                     var record = db.Set<Category>()
                         .Where(i => i.JournalId == journal.Id)
@@ -76,7 +73,8 @@ public class JCRHelper
                             QRank = GetQrank(item.Quartile),
                             If = item.IF,
                             Year = year,
-                            Customer = "Jiro"
+                            Customer = "Jiro",
+                            Edition = item.Edition.Trim(),
                         });
                     }
                 }
@@ -290,7 +288,7 @@ public class JCRHelper
         public string EISSN { get; set; }
         public string Category { get; set; }
         public string Edition { get; set; }
-        public decimal IF { get; set; }
+        public decimal? IF { get; set; }
         public string Quartile { get; set; }
         public string JIFRank { get; set; }
     }

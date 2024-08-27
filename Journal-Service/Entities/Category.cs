@@ -11,7 +11,6 @@ public class Category : IEntity
 
     public string Title { get; set; }
     public string? NormalizedTitle { get; set; }
-    public string? Edition { get; set; }
     public int Year { get; set; }
     public JournalIndex Index { get; set; }
     public JournalType? Type { get; set; }
@@ -21,6 +20,7 @@ public class Category : IEntity
     public decimal? If { get; set; }
     public decimal? Mif { get; set; }
     public decimal? Aif { get; set; }
+    public string? Edition { get; set; }
     public string? Customer { get; set; }
 }
 
