@@ -112,7 +112,7 @@ public class ScopusHelper
                                     Mif = null,
                                     Aif = null,
                                     Type = null,
-                                    Value = null,
+                                    ISCRank = null,
                                     IscClass = null
                                 });
 
@@ -141,7 +141,7 @@ public class ScopusHelper
                                     Mif = null,
                                     Aif = null,
                                     Type = null,
-                                    Value = null,
+                                    ISCRank = null,
                                     IscClass = null
                                 });
 
@@ -151,6 +151,7 @@ public class ScopusHelper
                             }
                         }
                     }
+
                     db.Save();
                 }
                 catch (Exception ex)

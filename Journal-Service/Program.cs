@@ -3,17 +3,14 @@ using OfficeOpenXml;
 
 Console.WriteLine("start app");
 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-int year = 2023;
-
-
-
+int year = 2013;
 
 var jcrHelper = new JCRHelper();
-string jcr_Path = @"C:\Works\Journals\jcr\" + year + ".xlsx";
+string jcr_Path = @"D:\Jiro\Journals\jcr\" + year + ".xlsx";
 jcrHelper.ImportData(jcr_Path, year);
 Console.WriteLine("Finish JCR " + year);
-//
-//
+
+
 // string mif_Path = @"D:\Jiro\Journals\jcr\Clarivate\" + year + "\\" + year + "-aif.xlsx";
 // jcrHelper.InsertCategories(mif_Path, year);
 // Console.WriteLine("Finish AIF " + year);
@@ -30,7 +27,6 @@ Console.ReadKey();
 // var journalHelper = new JournalHelper();
 // string path = @"D:\Jiro\Journals\journal-countries.xlsx";
 // journalHelper.ImportCountries(path);
-
 
 //journalHelper.FetchJournal(setting.Offset);
 

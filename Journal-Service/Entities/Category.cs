@@ -14,7 +14,7 @@ public class Category : IEntity
     public int Year { get; set; }
     public JournalIndex Index { get; set; }
     public JournalType? Type { get; set; }
-    public JournalValue? Value { get; set; }
+    public JournalValue? ISCRank { get; set; }
     public JournalQRank? QRank { get; set; }
     public JournalIscClass? IscClass { get; set; }
     public decimal? If { get; set; }

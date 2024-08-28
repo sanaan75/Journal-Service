@@ -62,22 +62,22 @@ public class VezaratinHelper
                         {
                             case 2019:
                             {
-                                category.Value = GetValue(item.Year_2019);
+                                category.ISCRank = GetValue(item.Year_2019);
                                 break;
                             }
                             case 2020:
                             {
-                                category.Value = GetValue(item.Year_2020);
+                                category.ISCRank = GetValue(item.Year_2020);
                                 break;
                             }
                             case 2021:
                             {
-                                category.Value = GetValue(item.Year_2021);
+                                category.ISCRank = GetValue(item.Year_2021);
                                 break;
                             }
                             case 2022:
                             {
-                                category.Value = GetValue(item.Year_2022);
+                                category.ISCRank = GetValue(item.Year_2022);
                                 break;
                             }
                         }
@@ -85,7 +85,7 @@ public class VezaratinHelper
                         db.Set<Category>().Add(category);
                         db.Save();
 
-                        Console.WriteLine(category.Year + "  " + category.Title + " : " + category.Value.ToString());
+                        Console.WriteLine(category.Year + "  " + category.Title + " : " + category.ISCRank.ToString());
                     }
                 }
                 else
@@ -127,29 +127,29 @@ public class VezaratinHelper
                         {
                             case 2019:
                             {
-                                category.Value = GetValue(item.Year_2019);
+                                category.ISCRank = GetValue(item.Year_2019);
                                 break;
                             }
                             case 2020:
                             {
-                                category.Value = GetValue(item.Year_2020);
+                                category.ISCRank = GetValue(item.Year_2020);
                                 break;
                             }
                             case 2021:
                             {
-                                category.Value = GetValue(item.Year_2021);
+                                category.ISCRank = GetValue(item.Year_2021);
                                 break;
                             }
                             case 2022:
                             {
-                                category.Value = GetValue(item.Year_2022);
+                                category.ISCRank = GetValue(item.Year_2022);
                                 break;
                             }
                         }
 
                         db.Set<Category>().Add(category);
                         db.Save();
-                        Console.WriteLine(category.Year + "  " + category.Title + " : " + category.Value.ToString());
+                        Console.WriteLine(category.Year + "  " + category.Title + " : " + category.ISCRank.ToString());
                     }
                 }
             }

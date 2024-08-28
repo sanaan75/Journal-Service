@@ -22,6 +22,13 @@ public class JCRHelper
 
             try
             {
+                decimal? rank = null;
+                if (string.IsNullOrWhiteSpace(item.JIFRank) == false)
+                {
+                    var rankStr = item.JIFRank.Split("/");
+                    rank = (Convert.ToDecimal(rankStr[0]) / Convert.ToDecimal(rankStr[1])) * 100;
+                }
+
                 if (journal is null)
                 {
                     var newJournal = db.Set<Journal>().Add(new Journal
@@ -38,7 +45,7 @@ public class JCRHelper
                         Title = item.Category.Trim().ConvertArabicToPersian(),
                         NormalizedTitle = item.Category.NormalizeTitle().ConvertArabicToPersian(),
                         Index = JournalIndex.JCR,
-                        QRank = GetQrank(item.Quartile),
+                        QRank = GetQrank(item.Quartile, rank),
                         If = item.IF,
                         Year = year,
                         Customer = "Jiro",
@@ -60,7 +67,7 @@ public class JCRHelper
                     if (record != null)
                     {
                         record.If = item.IF;
-                        record.QRank = GetQrank(item.Quartile);
+                        record.QRank = GetQrank(item.Quartile, rank);
                     }
                     else
                     {
@@ -70,7 +77,7 @@ public class JCRHelper
                             Title = item.Category.Trim(),
                             NormalizedTitle = item.Category.NormalizeTitle().ConvertArabicToPersian(),
                             Index = JournalIndex.JCR,
-                            QRank = GetQrank(item.Quartile),
+                            QRank = GetQrank(item.Quartile, rank),
                             If = item.IF,
                             Year = year,
                             Customer = "Jiro",
@@ -177,8 +184,8 @@ public class JCRHelper
                     EISSN = worksheet.Cells[row, 4].Text,
                     Category = worksheet.Cells[row, 5].Text,
                     Edition = worksheet.Cells[row, 6].Text,
-                    IF = decimal.TryParse(worksheet.Cells[row, 7].Text, out decimal ifValue) ? ifValue : 0,
-                    Quartile = worksheet.Cells[row, 8].Text,
+                    Quartile = worksheet.Cells[row, 7].Text,
+                    IF = decimal.TryParse(worksheet.Cells[row, 8].Text, out decimal ifValue) ? ifValue : 0,
                     JIFRank = worksheet.Cells[row, 9].Text,
                 };
                 list.Add(journal);
@@ -263,9 +270,19 @@ public class JCRHelper
         return list;
     }
 
-    JournalQRank? GetQrank(string rank)
+    JournalQRank? GetQrank(string quartile, decimal? rank)
     {
-        switch (rank)
+        if (rank is not null)
+        {
+            if (rank < 2)
+                return JournalQRank.OnePercent;
+            if (rank < 6)
+                return JournalQRank.FivePercent;
+            if (rank < 11)
+                return JournalQRank.TenPercent;
+        }
+
+        switch (quartile)
         {
             case "Q1":
                 return JournalQRank.Q1;
