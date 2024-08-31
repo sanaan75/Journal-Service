@@ -1,7 +1,7 @@
 using Journal_Service.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace Journal_Service;
+namespace Journal_Service.Data;
 
 public interface IDb
 {

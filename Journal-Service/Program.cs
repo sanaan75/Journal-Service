@@ -6,7 +6,7 @@ ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 int year = 2013;
 
 var jcrHelper = new JCRHelper();
-string jcr_Path = @"D:\Jiro\Journals\jcr\" + year + ".xlsx";
+string jcr_Path = @"C:\Works\Journals\jcr\" + year + ".xlsx";
 jcrHelper.ImportData(jcr_Path, year);
 Console.WriteLine("Finish JCR " + year);
 

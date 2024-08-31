@@ -29,23 +29,29 @@ public class JCRHelper
                     rank = (Convert.ToDecimal(rankStr[0]) / Convert.ToDecimal(rankStr[1])) * 100;
                 }
 
+                var qRank = GetQrank(item.Quartile, rank);
+                var categoryTitle = item.Category.Trim().ConvertArabicToPersian();
+                var categoryNormalizedTitle = item.Category.NormalizeTitle().ConvertArabicToPersian();
+                var issn = item.ISSN.CleanIssn();
+                var eissn = item.EISSN.CleanIssn();
+
                 if (journal is null)
                 {
                     var newJournal = db.Set<Journal>().Add(new Journal
                     {
                         Title = item.Title.ConvertArabicToPersian(),
                         NormalizedTitle = item.Title.NormalizeTitle().ConvertArabicToPersian(),
-                        Issn = item.ISSN.CleanIssn(),
-                        EIssn = item.EISSN.CleanIssn()
+                        Issn = issn,
+                        EIssn = eissn
                     }).Entity;
 
                     db.Set<Category>().Add(new Category
                     {
                         Journal = newJournal,
-                        Title = item.Category.Trim().ConvertArabicToPersian(),
-                        NormalizedTitle = item.Category.NormalizeTitle().ConvertArabicToPersian(),
+                        Title = categoryTitle,
+                        NormalizedTitle = categoryNormalizedTitle,
                         Index = JournalIndex.JCR,
-                        QRank = GetQrank(item.Quartile, rank),
+                        QRank = qRank,
                         If = item.IF,
                         Year = year,
                         Customer = "Jiro",
@@ -54,8 +60,8 @@ public class JCRHelper
                 }
                 else
                 {
-                    journal.Issn = item.ISSN.CleanIssn();
-                    journal.EIssn = item.EISSN.CleanIssn();
+                    journal.Issn = issn;
+                    journal.EIssn = eissn;
                     journal.Publisher = item.Publisher.Trim();
 
                     var record = db.Set<Category>()
@@ -67,17 +73,17 @@ public class JCRHelper
                     if (record != null)
                     {
                         record.If = item.IF;
-                        record.QRank = GetQrank(item.Quartile, rank);
+                        record.QRank = qRank;
                     }
                     else
                     {
                         db.Set<Category>().Add(new Category
                         {
                             JournalId = journal.Id,
-                            Title = item.Category.Trim(),
-                            NormalizedTitle = item.Category.NormalizeTitle().ConvertArabicToPersian(),
+                            Title = categoryTitle,
+                            NormalizedTitle = categoryNormalizedTitle,
                             Index = JournalIndex.JCR,
-                            QRank = GetQrank(item.Quartile, rank),
+                            QRank = qRank,
                             If = item.IF,
                             Year = year,
                             Customer = "Jiro",
@@ -85,14 +91,13 @@ public class JCRHelper
                         });
                     }
                 }
-
-                db.Save();
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
             }
 
+            db.Save();
             Console.WriteLine($"{item.Title}, {item.Category}, {item.IF}, {item.ISSN}");
         }
     }
