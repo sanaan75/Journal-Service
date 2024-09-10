@@ -3,16 +3,16 @@ using OfficeOpenXml;
 
 Console.WriteLine("start app");
 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-int year = 2013;
+int year = 2023;
 
-var jcrHelper = new JCRHelper();
-string jcr_Path = @"C:\Works\Journals\jcr\" + year + ".xlsx";
+ var jcrHelper = new JCRHelper();
+string jcr_Path = @"D:\Jiro\Journals\jcr\" + year + ".xlsx";
 jcrHelper.ImportData(jcr_Path, year);
 Console.WriteLine("Finish JCR " + year);
 
-
-// string mif_Path = @"D:\Jiro\Journals\jcr\Clarivate\" + year + "\\" + year + "-aif.xlsx";
-// jcrHelper.InsertCategories(mif_Path, year);
+//
+// string aif_Path = @"D:\Jiro\Journals\jcr\" + year + "\\" + year + "-aif.xlsx";
+// jcrHelper.InsertAIF(aif_Path, year);
 // Console.WriteLine("Finish AIF " + year);
 
 // string scopus2_path = @"D:\Jiro\Journals\scopus.xlsx";
@@ -22,12 +22,11 @@ Console.WriteLine("Finish JCR " + year);
 // var vezaratinHelper = new VezaratinHelper();
 // vezaratinHelper.ImportData(@"D:\Jiro\Journals\vezaratin.xlsx");
 
-Console.ReadKey();
-
 // var journalHelper = new JournalHelper();
 // string path = @"D:\Jiro\Journals\journal-countries.xlsx";
 // journalHelper.ImportCountries(path);
 
+Console.ReadKey();
 //journalHelper.FetchJournal(setting.Offset);
 
 // var scopusHelper = new ScopusHelper();

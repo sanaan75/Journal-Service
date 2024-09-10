@@ -43,7 +43,7 @@ public class VezaratinHelper
                                         i.Journal.Issn == item.ISSN.CleanIssn() ||
                                         i.Journal.EIssn == item.EISSN.CleanIssn())
                             .Where(i => i.Year == year)
-                            .Any(i => i.Index == JournalIndex.Vezaratin);
+                            .Any(i => i.Index == JournalIndex.ISC);
 
                         if (dup == true)
                             continue;
@@ -53,7 +53,7 @@ public class VezaratinHelper
                             Journal = journal,
                             Title = item.Category.Trim().ConvertArabicToPersian(),
                             NormalizedTitle = item.Category.NormalizeTitle().ConvertArabicToPersian(),
-                            Index = JournalIndex.Vezaratin,
+                            Index = JournalIndex.ISC,
                             Year = year,
                             Customer = "Jiro"
                         };
@@ -108,7 +108,7 @@ public class VezaratinHelper
                                         i.Journal.Issn == item.ISSN.CleanIssn() ||
                                         i.Journal.EIssn == item.EISSN.CleanIssn())
                             .Where(i => i.Year == year)
-                            .Any(i => i.Index == JournalIndex.Vezaratin);
+                            .Any(i => i.Index == JournalIndex.ISC);
 
                         if (dup == true)
                             continue;
@@ -118,7 +118,7 @@ public class VezaratinHelper
                             Journal = newJournal,
                             Title = item.Category.Trim().ConvertArabicToPersian(),
                             NormalizedTitle = item.Category.NormalizeTitle().ConvertArabicToPersian(),
-                            Index = JournalIndex.Vezaratin,
+                            Index = JournalIndex.ISC,
                             Year = year,
                             Customer = "Jiro"
                         };

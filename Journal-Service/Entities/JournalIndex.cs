@@ -7,5 +7,4 @@ public enum JournalIndex
     WebOfScience = 8,
     ISC = 16,
     Pubmed = 32,
-    Vezaratin = 64
 }

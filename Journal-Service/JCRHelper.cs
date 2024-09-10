@@ -1,5 +1,6 @@
 ﻿using Journal_Service.Data;
 using Journal_Service.Entities;
+using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 
 namespace Journal_Service;
@@ -9,16 +10,22 @@ public class JCRHelper
     public void ImportData(string filePath, int year)
     {
         List<JCRModel> items = ReadJCRExcelFile(filePath);
-        using var db = new AppDbContext();
+
+        var db = new AppDbContext();
 
         foreach (var item in items)
         {
             if (string.IsNullOrWhiteSpace(item.Title) || string.IsNullOrWhiteSpace(item.Category) || item.IF is null)
                 continue;
 
+            var normalizeTitle = item.Title.NormalizeTitle();
+            var categoryTitle = item.Category.Trim().ConvertArabicToPersian();
+            var categoryNormalizedTitle = item.Category.NormalizeTitle().ConvertArabicToPersian();
+            var issn = item.ISSN.CleanIssn();
+            var eissn = item.EISSN.CleanIssn();
+
             var journal = db.Set<Journal>().FirstOrDefault(i =>
-                i.NormalizedTitle == item.Title.NormalizeTitle() || i.Issn == item.ISSN.CleanIssn() ||
-                i.EIssn == item.EISSN.CleanIssn());
+                i.NormalizedTitle == normalizeTitle || i.Issn == issn || i.EIssn == eissn);
 
             try
             {
@@ -30,17 +37,13 @@ public class JCRHelper
                 }
 
                 var qRank = GetQrank(item.Quartile, rank);
-                var categoryTitle = item.Category.Trim().ConvertArabicToPersian();
-                var categoryNormalizedTitle = item.Category.NormalizeTitle().ConvertArabicToPersian();
-                var issn = item.ISSN.CleanIssn();
-                var eissn = item.EISSN.CleanIssn();
 
                 if (journal is null)
                 {
                     var newJournal = db.Set<Journal>().Add(new Journal
                     {
                         Title = item.Title.ConvertArabicToPersian(),
-                        NormalizedTitle = item.Title.NormalizeTitle().ConvertArabicToPersian(),
+                        NormalizedTitle = normalizeTitle.ConvertArabicToPersian(),
                         Issn = issn,
                         EIssn = eissn
                     }).Entity;
@@ -60,22 +63,14 @@ public class JCRHelper
                 }
                 else
                 {
-                    journal.Issn = issn;
-                    journal.EIssn = eissn;
-                    journal.Publisher = item.Publisher.Trim();
-
                     var record = db.Set<Category>()
                         .Where(i => i.JournalId == journal.Id)
                         .Where(i => i.Year == year)
                         .Where(i => i.Index == JournalIndex.JCR)
-                        .FirstOrDefault(i => i.NormalizedTitle == item.Category.NormalizeTitle());
+                        .Where(i => i.Edition == item.Edition.Trim())
+                        .FirstOrDefault(i => i.NormalizedTitle == categoryNormalizedTitle);
 
-                    if (record != null)
-                    {
-                        record.If = item.IF;
-                        record.QRank = qRank;
-                    }
-                    else
+                    if (record == null)
                     {
                         db.Set<Category>().Add(new Category
                         {
@@ -91,15 +86,216 @@ public class JCRHelper
                         });
                     }
                 }
+
+                db.Save();
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
             }
 
-            db.Save();
-            Console.WriteLine($"{item.Title}, {item.Category}, {item.IF}, {item.ISSN}");
+            Console.WriteLine(item.Category);
         }
+    }
+
+    public void ImportData2(string filePath, int year)
+    {
+        List<JCRModel> items = ReadJCRExcelFile(filePath);
+
+        Parallel.ForEach(items, new ParallelOptions() { MaxDegreeOfParallelism = 4 }, item =>
+        {
+            using (var db = new AppDbContext())
+            {
+                db.Database.ExecuteSqlRaw("SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED");
+
+                if (string.IsNullOrWhiteSpace(item.Title) || string.IsNullOrWhiteSpace(item.Category) ||
+                    item.IF is null)
+                    return;
+
+                var normalizeTitle = item.Title.NormalizeTitle();
+                var categoryTitle = item.Category.Trim().ConvertArabicToPersian();
+                var categoryNormalizedTitle = item.Category.NormalizeTitle().ConvertArabicToPersian();
+                var issn = item.ISSN.CleanIssn();
+                var eissn = item.EISSN.CleanIssn();
+
+                var journal = db.Set<Journal>().FirstOrDefault(i =>
+                    i.NormalizedTitle == normalizeTitle || i.Issn == issn || i.EIssn == eissn);
+
+                try
+                {
+                    decimal? rank = null;
+                    if (string.IsNullOrWhiteSpace(item.JIFRank) == false)
+                    {
+                        var rankStr = item.JIFRank.Split("/");
+                        rank = (Convert.ToDecimal(rankStr[0]) / Convert.ToDecimal(rankStr[1])) * 100;
+                    }
+
+                    var qRank = GetQrank(item.Quartile, rank);
+
+                    var editions = item.Edition.Split(",");
+
+                    foreach (var edition in editions)
+                    {
+                        if (journal is null)
+                        {
+                            var newJournal = db.Set<Journal>().Add(new Journal
+                            {
+                                Title = item.Title.ConvertArabicToPersian(),
+                                NormalizedTitle = normalizeTitle.ConvertArabicToPersian(),
+                                Issn = issn,
+                                EIssn = eissn
+                            }).Entity;
+
+                            db.Set<Category>().Add(new Category
+                            {
+                                Journal = newJournal,
+                                Title = categoryTitle,
+                                NormalizedTitle = categoryNormalizedTitle,
+                                Index = JournalIndex.JCR,
+                                QRank = qRank,
+                                If = item.IF,
+                                Year = year,
+                                Customer = "Jiro",
+                                Edition = edition.Trim()
+                            });
+                        }
+                        else
+                        {
+                            journal.Issn = issn;
+                            journal.EIssn = eissn;
+                            journal.Publisher = item.Publisher.Trim();
+
+                            var record = db.Set<Category>()
+                                .Where(i => i.JournalId == journal.Id)
+                                .Where(i => i.Year == year)
+                                .Where(i => i.Index == JournalIndex.JCR)
+                                .Where(i => i.Edition == edition.Trim())
+                                .FirstOrDefault(i => i.NormalizedTitle == categoryNormalizedTitle);
+
+                            if (record != null)
+                            {
+                                record.If = item.IF;
+                            }
+                            else
+                            {
+                                db.Set<Category>().Add(new Category
+                                {
+                                    JournalId = journal.Id,
+                                    Title = categoryTitle,
+                                    NormalizedTitle = categoryNormalizedTitle,
+                                    Index = JournalIndex.JCR,
+                                    QRank = qRank,
+                                    If = item.IF,
+                                    Year = year,
+                                    Customer = "Jiro",
+                                    Edition = edition.Trim(),
+                                });
+                            }
+                        }
+                    }
+
+                    db.Save();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
+
+                Console.WriteLine(item.Category);
+            }
+        });
+
+        // foreach (var item in items)
+        // {
+        //     if (string.IsNullOrWhiteSpace(item.Title) || string.IsNullOrWhiteSpace(item.Category) || item.IF is null)
+        //         continue;
+        //
+        //     var normalizeTitle = item.Title.NormalizeTitle();
+        //     var categoryTitle = item.Category.Trim().ConvertArabicToPersian();
+        //     var categoryNormalizedTitle = item.Category.NormalizeTitle().ConvertArabicToPersian();
+        //     var issn = item.ISSN.CleanIssn();
+        //     var eissn = item.EISSN.CleanIssn();
+        //
+        //     var journal = db.Set<Journal>().FirstOrDefault(i =>
+        //         i.NormalizedTitle == normalizeTitle || i.Issn == issn || i.EIssn == eissn);
+        //
+        //     try
+        //     {
+        //         decimal? rank = null;
+        //         if (string.IsNullOrWhiteSpace(item.JIFRank) == false)
+        //         {
+        //             var rankStr = item.JIFRank.Split("/");
+        //             rank = (Convert.ToDecimal(rankStr[0]) / Convert.ToDecimal(rankStr[1])) * 100;
+        //         }
+        //
+        //         var qRank = GetQrank(item.Quartile, rank);
+        //
+        //         if (journal is null)
+        //         {
+        //             var newJournal = db.Set<Journal>().Add(new Journal
+        //             {
+        //                 Title = item.Title.ConvertArabicToPersian(),
+        //                 NormalizedTitle = normalizeTitle.ConvertArabicToPersian(),
+        //                 Issn = issn,
+        //                 EIssn = eissn
+        //             }).Entity;
+        //
+        //             db.Set<Category>().Add(new Category
+        //             {
+        //                 Journal = newJournal,
+        //                 Title = categoryTitle,
+        //                 NormalizedTitle = categoryNormalizedTitle,
+        //                 Index = JournalIndex.JCR,
+        //                 QRank = qRank,
+        //                 If = item.IF,
+        //                 Year = year,
+        //                 Customer = "Jiro",
+        //                 Edition = item.Edition.Trim()
+        //             });
+        //         }
+        //         else
+        //         {
+        //             journal.Issn = issn;
+        //             journal.EIssn = eissn;
+        //             journal.Publisher = item.Publisher.Trim();
+        //
+        //             var record = db.Set<Category>()
+        //                 .Where(i => i.JournalId == journal.Id)
+        //                 .Where(i => i.Year == year)
+        //                 .Where(i => i.Index == JournalIndex.JCR)
+        //                 .Where(i => i.Edition == item.Edition.Trim())
+        //                 .FirstOrDefault(i => i.NormalizedTitle == categoryNormalizedTitle);
+        //
+        //             if (record != null)
+        //             {
+        //                 record.If = item.IF;
+        //             }
+        //             else
+        //             {
+        //                 db.Set<Category>().Add(new Category
+        //                 {
+        //                     JournalId = journal.Id,
+        //                     Title = categoryTitle,
+        //                     NormalizedTitle = categoryNormalizedTitle,
+        //                     Index = JournalIndex.JCR,
+        //                     QRank = qRank,
+        //                     If = item.IF,
+        //                     Year = year,
+        //                     Customer = "Jiro",
+        //                     Edition = item.Edition.Trim(),
+        //                 });
+        //             }
+        //         }
+        //
+        //         db.Save();
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         Console.WriteLine(ex);
+        //     }
+        //
+        //     Console.WriteLine(item.Category);
+        // }
     }
 
     public void InsertCategories(string filePath, int year)
@@ -145,28 +341,36 @@ public class JCRHelper
         {
             try
             {
-                var items = db.Set<Category>()
-                    .Where(i => i.Year == year)
-                    .Where(i => i.Index == JournalIndex.JCR)
-                    .Where(i => i.NormalizedTitle == category.Title.NormalizeTitle())
-                    .ToList();
+                var editions = category.Edition.Split(",");
 
-                foreach (var item in items)
+                foreach (var edition in editions)
                 {
-                    item.Mif = category.MIF;
-                    item.Aif = category.AIF;
-                }
+                    if (string.IsNullOrWhiteSpace(edition) == true)
+                        continue;
 
-                Console.WriteLine($"{category.Title} - Mif : {category.MIF} - Aif : " + category.AIF);
+                    var items = db.Set<Category>()
+                        .Where(i => i.Year == year)
+                        .Where(i => i.Index == JournalIndex.JCR)
+                        .Where(i => i.Edition == edition.Trim())
+                        .Where(i => i.NormalizedTitle == category.Title.NormalizeTitle())
+                        .ToList();
+
+                    foreach (var item in items)
+                    {
+                        item.Mif = category.MIF;
+                        item.Aif = category.AIF;
+                    }
+
+                    Console.WriteLine($"{category.Title} - Mif : {category.MIF} - Aif : " + category.AIF);
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
-                //throw;
             }
-        }
 
-        db.Save();
+            db.Save();
+        }
     }
 
     static List<JCRModel> ReadJCRExcelFile(string filePath)
@@ -267,6 +471,7 @@ public class JCRHelper
                     Title = worksheet.Cells[row, 1].Text,
                     MIF = decimal.TryParse(worksheet.Cells[row, 2].Text, out decimal mifValue) ? mifValue : 0,
                     AIF = decimal.TryParse(worksheet.Cells[row, 3].Text, out decimal aifValue) ? mifValue : 0,
+                    Edition = worksheet.Cells[row, 4].Text,
                 };
                 list.Add(model);
             }
@@ -327,5 +532,6 @@ public class JCRHelper
         public string Title { get; set; }
         public decimal MIF { get; set; }
         public decimal AIF { get; set; }
+        public string Edition { get; set; }
     }
 }
