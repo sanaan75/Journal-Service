@@ -102,7 +102,7 @@ public class JCRHelper
     {
         List<JCRModel> items = ReadJCRExcelFile(filePath);
 
-        Parallel.ForEach(items, new ParallelOptions() { MaxDegreeOfParallelism = 4 }, item =>
+        Parallel.ForEach(items, new ParallelOptions() { MaxDegreeOfParallelism = 8 }, item =>
         {
             using (var db = new AppDbContext())
             {
@@ -118,8 +118,15 @@ public class JCRHelper
                 var issn = item.ISSN.CleanIssn();
                 var eissn = item.EISSN.CleanIssn();
 
-                var journal = db.Set<Journal>().FirstOrDefault(i =>
-                    i.NormalizedTitle == normalizeTitle || i.Issn == issn || i.EIssn == eissn);
+                var journals = db.Set<Journal>().Where(i => i.NormalizedTitle == normalizeTitle);
+
+                if (string.IsNullOrWhiteSpace(issn) == false)
+                    journals = journals.Where(i => i.Issn == issn);
+                
+                if (string.IsNullOrWhiteSpace(eissn) == false)
+                    journals = journals.Where(i => i.EIssn == eissn);
+
+                var journal = journals.FirstOrDefault();
 
                 try
                 {
