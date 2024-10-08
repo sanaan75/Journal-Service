@@ -25,10 +25,20 @@ public class VezaratinHelper
                 2022
             };
 
-            var journal = db.Query<Journal>().FirstOrDefault(i =>
-                i.NormalizedTitle == item.Title.NormalizeTitle() || i.Issn == item.ISSN.CleanIssn() ||
-                i.EIssn == item.EISSN.CleanIssn());
+            var normalizeTitle = item.Title.NormalizeTitle();
+            var issn = item.ISSN.CleanIssn();
+            var eissn = item.EISSN.CleanIssn();
 
+            var journals = db.Set<Journal>().Where(i => i.NormalizedTitle == normalizeTitle);
+
+            if (journals.Any() == false && string.IsNullOrWhiteSpace(issn) == false)
+                journals = journals.Where(i => i.Issn == issn);
+
+            if (journals.Any() == false && string.IsNullOrWhiteSpace(eissn) == false)
+                journals = journals.Where(i => i.EIssn == eissn);
+
+            var journal = journals.FirstOrDefault();
+            
             try
             {
                 if (journal is not null)
@@ -38,11 +48,16 @@ public class VezaratinHelper
 
                     foreach (var year in years)
                     {
-                        var dup = db.Query<Category>()
-                            .Where(i => i.Journal.NormalizedTitle == item.Title.NormalizeTitle() ||
-                                        i.Journal.Issn == item.ISSN.CleanIssn() ||
-                                        i.Journal.EIssn == item.EISSN.CleanIssn())
-                            .Where(i => i.Year == year)
+                        var categories = db.Query<Category>()
+                            .Where(i => i.Journal.NormalizedTitle == normalizeTitle);
+
+                        if (string.IsNullOrWhiteSpace(issn) == false)
+                            categories = categories.Where(i => i.Journal.Issn == issn);
+
+                        if (string.IsNullOrWhiteSpace(eissn) == false)
+                            categories = categories.Where(i => i.Journal.EIssn == eissn);
+
+                        var dup = categories.Where(i => i.Year == year)
                             .Any(i => i.Index == JournalIndex.ISC);
 
                         if (dup == true)
@@ -103,11 +118,16 @@ public class VezaratinHelper
 
                     foreach (var year in years)
                     {
-                        var dup = db.Query<Category>()
-                            .Where(i => i.Journal.NormalizedTitle == item.Title.NormalizeTitle() ||
-                                        i.Journal.Issn == item.ISSN.CleanIssn() ||
-                                        i.Journal.EIssn == item.EISSN.CleanIssn())
-                            .Where(i => i.Year == year)
+                        var categories = db.Query<Category>()
+                            .Where(i => i.Journal.NormalizedTitle == normalizeTitle);
+
+                        if (string.IsNullOrWhiteSpace(issn) == false)
+                            categories = categories.Where(i => i.Journal.Issn == issn);
+
+                        if (string.IsNullOrWhiteSpace(eissn) == false)
+                            categories = categories.Where(i => i.Journal.EIssn == eissn);
+
+                        var dup = categories.Where(i => i.Year == year)
                             .Any(i => i.Index == JournalIndex.ISC);
 
                         if (dup == true)

@@ -14,9 +14,11 @@ public static class UtilityExt
 
     public static string CleanIssn(this string issn)
     {
-        return issn.Trim().Replace("-", String.Empty).ToUpper();
+        return string.IsNullOrWhiteSpace(issn) == false
+            ? issn.Trim().Replace("-", string.Empty).Replace(" ",string.Empty).ToUpper()
+            : string.Empty;
     }
-    
+
     public static string ToTitleCase(this string input)
     {
         if (string.IsNullOrEmpty(input))
@@ -24,12 +26,12 @@ public static class UtilityExt
 
         return char.ToUpper(input[0]) + input.Substring(1).ToLower();
     }
-    
+
     private static readonly Dictionary<char, char> arabicToPersianMap = new Dictionary<char, char>
     {
-        {'ي', 'ی'},
-        {'ك', 'ک'},
-        {'ه', 'ه'},
+        { 'ي', 'ی' },
+        { 'ك', 'ک' },
+        { 'ه', 'ه' },
     };
 
     public static string ConvertArabicToPersian(this string input)

@@ -3,26 +3,49 @@ using OfficeOpenXml;
 
 Console.WriteLine("start app");
 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-int year = 2023;
+int year = 2018;
 
- var jcrHelper = new JCRHelper();
-// string jcr_Path = @"C:\Works\Journals\jcr\" + year + ".xlsx";
-// jcrHelper.ImportData2(jcr_Path, year);
-// Console.WriteLine("Finish JCR " + year);
-
-
-string aif_Path = @"C:\Works\Journals\jcr\" + year + "\\" + year + "-aif.xlsx";
-jcrHelper.InsertAIF(aif_Path, year);
-Console.WriteLine("Finish AIF " + year);
-
-// string scopus2_path = @"D:\Jiro\Journals\scopus.xlsx";
-// var scopus2Helper = new Scopus2Helper();
-// scopus2Helper.ImportData(scopus2_path);
+var iscHelper = new IscHelper();
+string iscPath = @"D:\Jiro\Journals\isc\" + year + ".xlsx";
+iscHelper.ImportData(iscPath, year);
+Console.WriteLine("finish ISC " + year);
 
 Console.ReadKey();
 
+// jcr_Path = @"D:\Jiro\Journals\jcr\" + year + ".xlsx";
+// jcrHelper.ImportData(jcr_Path, year);
+
+// aif_Path = @"D:\Jiro\Journals\jcr\" + year + "\\" + year + "-aif.xlsx";
+// jcrHelper.InsertAif(aif_Path, year);
+// Console.WriteLine("Finish AIF " + year);
+
 // var vezaratinHelper = new VezaratinHelper();
 // vezaratinHelper.ImportData(@"D:\Jiro\Journals\vezaratin.xlsx");
+
+// var jcrHelper = new JCRHelper();
+// string jcr_Path = @"D:\Jiro\Journals\jcr\" + year + ".xlsx";
+// jcrHelper.ImportData(jcr_Path, year);
+
+// string aif_Path = @"D:\Jiro\Journals\jcr\" + year + "\\" + year + "-aif.xlsx";
+// jcrHelper.InsertAif(aif_Path, year);
+// Console.WriteLine("Finish AIF " + year);
+
+// var scopusHelper = new ScopusHelper();
+// string scopus_path = @"D:\Jiro\Journals\scopus\" + year + "\\" + year + "-a.xlsx";
+// scopusHelper.ImportData(scopus_path, year);
+//
+// string scopus_path2 = @"D:\Jiro\Journals\scopus\" + year + "\\" + year + "-b.xlsx";
+// scopusHelper.ImportData(scopus_path2, year);
+//
+// string scopus_path3 = @"D:\Jiro\Journals\scopus\" + year + "\\" + year + "-c.xlsx";
+// scopusHelper.ImportData(scopus_path3, year);
+
+// using var db = new AppDbContext();
+// var setting = db.Set<Setting>().Single();
+//
+// var journalHelper = new JournalHelper();
+// journalHelper.FetchJournalCountry();
+
 
 // var journalHelper = new JournalHelper();
 // string path = @"D:\Jiro\Journals\journal-countries.xlsx";
@@ -49,15 +72,6 @@ Console.ReadKey();
 // string isc_Path = @"C:\Works\Journals\isc\" + year + ".xlsx";
 // iscHelper.InsertIsc(isc_Path, year);
 // Console.WriteLine("finish ISC " + year);
-
-
-//using var db = new AppDbContext();
-//var setting = db.Set<Setting>().Single();
-
-//var journalHelper = new JournalHelper();
-
-//journalHelper.FixData();
-//journalHelper.FetchJournal(setting.Offset);
 
 //journalHelper.FetchJCR(2012);
 

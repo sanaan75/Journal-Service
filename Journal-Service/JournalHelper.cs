@@ -1,9 +1,11 @@
-﻿using System.Net.Http.Headers;
+﻿using System.Collections.Concurrent;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
 using Journal_Service.Data;
 using Journal_Service.Entities;
+using Newtonsoft.Json.Linq;
 using OfficeOpenXml;
 
 namespace Journal_Service;
@@ -107,20 +109,6 @@ public class JournalHelper
 
         return country;
     }
-
-    // string url = "https://example.com/journals"; // Placeholder URL
-    // List<string> journalList = await GetJournalList(url);
-    //
-    //     // Print the list of journals
-    //     foreach (var journal in journalList)
-    // {
-    //     Console.WriteLine(journal);
-    // }
-
-    // string dateString = "01 March 2018";
-    // DateTime date = DateTime.Parse(dateString);
-    // Console.WriteLine(date);
-
 
     static async Task<List<string>> GetJournalList(string url)
     {
@@ -234,7 +222,7 @@ public class JournalHelper
 
             foreach (var journal in journals)
             {
-                journal.NormalizedTitle = NormalizeTitle(journal.Title);
+                journal.NormalizedTitle = journal.Title.NormalizeTitle();
                 journal.Issn = journal.Issn != null ? CleanIssn(journal.Issn) : null;
                 journal.EIssn = journal.EIssn != null ? CleanIssn(journal.EIssn) : null;
                 Console.WriteLine(journal.Id + "  done.");
@@ -255,6 +243,7 @@ public class JournalHelper
             Console.WriteLine(ex);
         }
     }
+
 
     // public async Task FetchJCRFromSamp(int year)
     // {
@@ -335,89 +324,136 @@ public class JournalHelper
     // }
 
 
-    // public async Task FetchJournal(int offset)
-    // {
-    //     if (TotalItems <= offset)
-    //         return;
-    //
-    //     try
-    //     {
-    //         Console.Write("start");
-    //
-    //         string url = $"https://api.crossref.org/journals?rows={rows}&offset={offset}";
-    //
-    //         var response = await client.GetAsync(url);
-    //
-    //         Console.Write("\t response");
-    //         if (response.IsSuccessStatusCode)
-    //         {
-    //             Console.WriteLine("\t processing");
-    //
-    //             string jsonContent = await response.Content.ReadAsStringAsync();
-    //
-    //             JObject jsonResponse = JObject.Parse(jsonContent);
-    //
-    //             TotalItems = (int)jsonResponse["message"]["total-results"];
-    //
-    //             using var db = new AppDbContext();
-    //             foreach (JToken item in jsonResponse["message"]["items"])
-    //             {
-    //                 List<string> subjects = new();
-    //                 Dictionary<string, string> issns = new();
-    //
-    //                 foreach (var subject in item["subjects"])
-    //                 {
-    //                     subjects.Add(subject["name"].ToString());
-    //                 }
-    //
-    //                 foreach (var issn in item["issn-type"])
-    //                 {
-    //                     issns.Add(issn["type"].ToString(), issn["value"].ToString());
-    //                 }
-    //
-    //                 var journalTitle = item["title"].ToString().Trim();
-    //                 issns.TryGetValue("print", out string Issn);
-    //                 issns.TryGetValue("electronic", out string eissn);
-    //
-    //                 Issn = string.IsNullOrWhiteSpace(Issn) == false ? Issn.Replace("-", String.Empty) : string.Empty;
-    //                 eissn = string.IsNullOrWhiteSpace(eissn) == false ? eissn.Replace("-", String.Empty) : string.Empty;
-    //
-    //
-    //                 var dup_journal = db.Query<Journal>()
-    //                     .FirstOrDefault(i => i.Title.ToLower().Equals(journalTitle.ToLower()));
-    //
-    //                 if (dup_journal != null)
-    //                     continue;
-    //
-    //                 // db.Set<Journal>().Add(new Journal
-    //                 // {
-    //                 //     Title = journalTitle,
-    //                 //     Publisher = item["publisher"].ToString(),
-    //                 //     Issn = Issn,
-    //                 //     EIssn = eissn,
-    //                 //     WebSite = string.Empty,
-    //                 //     Country = string.Empty
-    //                 // });
-    //             }
-    //
-    //             var setting = db.Set<Setting>().Single();
-    //             setting.Offset = offset + rows;
-    //             //db.Save();
-    //
-    //             Console.WriteLine("rows " + (offset) + " -> " + (offset + rows) + "  added   (: \n");
-    //             await Task.Delay(300);
-    //             FetchJournal(offset + rows);
-    //         }
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         Console.ForegroundColor = ConsoleColor.Red;
-    //         Console.WriteLine(ex.Message);
-    //         Console.ForegroundColor = ConsoleColor.White;
-    //         FetchJournal(offset);
-    //     }
-    // }
+    public async Task FetchJournal(int offset)
+    {
+        if (100000 < offset)
+            return;
 
+        try
+        {
+            Console.Write("start");
+
+            string url = $"https://api.crossref.org/journals?rows={rows}&offset={offset}";
+
+            var response = await client.GetAsync(url);
+
+            Console.Write("\t response");
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("\t processing");
+
+                string jsonContent = await response.Content.ReadAsStringAsync();
+                JObject jsonResponse = JObject.Parse(jsonContent);
+
+                TotalItems = (int)jsonResponse["message"]["total-results"];
+
+                using var db = new AppDbContext();
+                foreach (JToken item in jsonResponse["message"]["items"])
+                {
+                    //List<string> subjects = new();
+                    Dictionary<string, string> issns = new();
+
+                    // foreach (var subject in item["subjects"])
+                    //     subjects.Add(subject["name"].ToString());
+
+                    foreach (var issn in item["issn-type"])
+                        issns.Add(issn["type"].ToString(), issn["value"].ToString());
+
+                    var journalTitle = item["title"].ToString().Trim();
+                    var normalizedTitle = journalTitle.NormalizeTitle();
+
+                    issns.TryGetValue("print", out string Issn);
+                    issns.TryGetValue("electronic", out string eissn);
+
+                    Issn = Issn.CleanIssn();
+                    eissn = eissn.CleanIssn();
+
+                    var dupJournal = db.Query<Journal>()
+                        .Any(i => i.NormalizedTitle == normalizedTitle || i.Issn == Issn);
+
+                    if (dupJournal == true)
+                        continue;
+
+                    db.Set<Journal>().Add(new Journal
+                    {
+                        Title = journalTitle,
+                        NormalizedTitle = journalTitle.NormalizeTitle(),
+                        Publisher = item["publisher"].ToString(),
+                        Issn = Issn,
+                        EIssn = eissn,
+                        Country = string.Empty
+                    });
+                }
+
+                var setting = db.Set<Setting>().Single();
+                setting.Offset = offset + rows;
+                db.Save();
+
+                Console.WriteLine("rows " + (offset) + " -> " + (offset + rows) + "  added   (: \n");
+                await Task.Delay(250);
+                FetchJournal(offset + rows);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(ex.Message);
+            Console.ForegroundColor = ConsoleColor.White;
+            FetchJournal(offset);
+        }
+    }
+
+    public async Task FetchJournalCountry()
+    {
+        string url = "https://portal.issn.org/resource/ISSN/";
+
+        using var db = new AppDbContext();
+        var journals = db.Set<Journal>().ToList();
+
+        var httpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromMinutes(2)
+        };
+        var tasks = new ConcurrentBag<Task>();
+
+        foreach (var journal in journals)
+        {
+            tasks.Add(Task.Run(async () =>
+            {
+                try
+                {
+                    string pageContent = await httpClient.GetStringAsync(url + journal.Issn);
+                    HtmlDocument document = new HtmlDocument();
+                    document.LoadHtml(pageContent);
+
+                    var countryNode = document.DocumentNode.SelectSingleNode("//p[span/text()='Country: ']");
+                    string country = string.Empty;
+
+                    if (countryNode != null)
+                    {
+                        var countryText = countryNode.InnerText;
+                        country = countryText.Replace("Country: ", "").Trim();
+                    }
+
+                    if (string.IsNullOrEmpty(journal.Country) && !string.IsNullOrEmpty(country))
+                    {
+                        journal.Country = country.ToLower();
+                        Console.WriteLine($"{journal.Title} : {country}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"error for ISSN {journal.Issn} : {ex.Message}");
+                    Console.ForegroundColor = ConsoleColor.White;
+                }
+            }));
+        }
+
+        await Task.WhenAll(tasks);
+
+        db.Save();
+    }
 
     private JournalQRank? GetQrank(string rank)
     {

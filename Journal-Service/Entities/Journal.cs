@@ -8,7 +8,6 @@ public class Journal : IEntity
 
     public string? Issn { get; set; }
     public string? EIssn { get; set; }
-    public string? WebSite { get; set; }
     public string? Publisher { get; set; }
     public string? Country { get; set; }
 

@@ -2,21 +2,21 @@
 using ExcelDataReader;
 using Journal_Service.Data;
 using Journal_Service.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace Journal_Service;
 
 public class ScopusHelper
 {
-    public void InsertScopusFromSJR(string filePath, int year)
+    public void ImportData(string filePath, int year)
     {
         List<string> rows = new List<string>();
-        using var db = new AppDbContext();
+
         try
         {
             using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read))
             {
                 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
-
                 using (var reader = ExcelReaderFactory.CreateReader(stream))
                 {
                     var result = reader.AsDataSet();
@@ -30,141 +30,331 @@ public class ScopusHelper
                 }
             }
 
-            foreach (var row in rows)
+            Parallel.ForEach(rows, new ParallelOptions { MaxDegreeOfParallelism = 8 }, row =>
             {
+                string[] columns = new string[] { };
                 try
                 {
-                    if (string.IsNullOrWhiteSpace(row)) ;
+                    if (string.IsNullOrWhiteSpace(row)) return;
 
                     var sampleText = row.Replace('\"', ' ')
                         .Replace("&amp;", "-")
                         .Replace("&current;", "-");
 
                     var lastIndex = sampleText.LastIndexOf(')');
-                    sampleText = sampleText.Substring(0, lastIndex + 1);
+                    if (lastIndex != -1)
+                        sampleText = sampleText.Substring(0, lastIndex + 1);
 
-                    string[] columns = sampleText.Split(';');
+                    columns = sampleText.Split(';');
+
+                    if (columns.Length < 22 || columns[2] is null || columns[3] is null) return;
+
+                    if (string.IsNullOrWhiteSpace(columns[3]) == true || string.IsNullOrWhiteSpace(columns[2]))
+                        return;
 
                     if (columns[3].Trim().Equals("journal"))
                     {
                         List<string> catList = new();
-
-                        for (int i = 22; i <= columns.Length - 1; i++)
+                        for (int i = 22; i < columns.Length; i++)
                             catList.Add(columns[i]);
 
-                        foreach (var category in catList)
+                        using (var db = new AppDbContext())
                         {
-                            string issn = null;
-                            string eIssn = null;
+                            db.Database.ExecuteSqlRaw("SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED");
 
-                            var iisnText = columns[4].Trim().Replace("\"", "").Replace(" ", "");
-
-                            if (iisnText.Length >= 8)
+                            foreach (var category in catList)
                             {
-                                eIssn = iisnText.Substring(0, 8);
-                                if (iisnText.Length == 16) issn = iisnText.Substring(8, 8);
+                                string issn = null;
+                                string eIssn = null;
 
-                                if (iisnText.Length >= 16) issn = iisnText.Substring(iisnText.Length - 8, 8);
-                            }
-
-                            if (GetCategory(category) is null)
-                                continue;
-
-                            var model = new DataItem
-                            {
-                                Title = columns[2].Trim().Replace("\"", "").ConvertArabicToPersian(),
-                                ISSN = issn.Replace("-", "").Trim(),
-                                EISSN = eIssn.Replace("-", "").Trim(),
-                                Index = JournalIndex.Scopus,
-                                Category = GetCategory(category).Title.ConvertArabicToPersian(),
-                                Rank = GetCategory(category).Rank,
-                                Country = columns[18].Trim().Replace("\"", "").ConvertArabicToPersian(),
-                                Publisher = columns[20].Trim().Replace("\"", "").ConvertArabicToPersian()
-                            };
-
-                            var journal = db.Query<Journal>().FirstOrDefault(i =>
-                                i.NormalizedTitle == model.Title.NormalizeTitle() ||
-                                i.Issn == issn.CleanIssn() || i.EIssn == model.EISSN.CleanIssn());
-
-                            if (journal != null)
-                            {
-                                if (string.IsNullOrWhiteSpace(model.Category))
-                                    continue;
-
-                                var dup = db.Query<Category>()
-                                    .Where(i => i.JournalId == journal.Id)
-                                    .Where(i => i.Index == JournalIndex.Scopus)
-                                    .Where(i => i.NormalizedTitle.Equals(model.Category.NormalizeTitle()))
-                                    .Any(i => i.Year == year);
-
-                                if (dup == true)
-                                    continue;
-
-                                db.Set<Category>().Add(new Category
+                                var iisnText = columns[4].Trim().Replace("\"", "").Replace(" ", "");
+                                if (iisnText.Length >= 8)
                                 {
-                                    JournalId = journal.Id,
-                                    Year = year,
-                                    Title = model.Category,
-                                    NormalizedTitle = model.Category.NormalizeTitle(),
+                                    issn = iisnText.Substring(0, 8);
+                                    if (iisnText.Length >= 16)
+                                        eIssn = iisnText.Substring(iisnText.Length - 8, 8);
+                                }
+
+                                var cat = GetCategory(category);
+                                if (cat == null) continue;
+
+                                var model = new DataItem
+                                {
+                                    Title = columns[2]?.Trim().Replace("\"", "").ConvertArabicToPersian(),
+                                    ISSN = issn?.Replace("-", "").CleanIssn(),
+                                    EISSN = eIssn?.Replace("-", "").CleanIssn(),
                                     Index = JournalIndex.Scopus,
-                                    QRank = model.Rank,
-                                    If = null,
-                                    Mif = null,
-                                    Aif = null,
-                                    Type = null,
-                                    ISCRank = null,
-                                    IscClass = null
-                                });
+                                    Category = cat.Title.ConvertArabicToPersian(),
+                                    Rank = cat.Rank,
+                                    Country = columns[18]?.Trim().Replace("\"", "").ConvertArabicToPersian(),
+                                    Publisher = columns[20]?.Trim().Replace("\"", "").ConvertArabicToPersian()
+                                };
 
-                                Console.WriteLine(model.Category + " - " + model.Rank);
-                            }
-                            else
-                            {
-                                var newJournal = db.Set<Journal>().Add(new Journal
+                                if (model.Title == null) continue;
+
+                                var journals = db.Query<Journal>().Where(j => j.NormalizedTitle == model.Title.NormalizeTitle());
+
+                                if (journals.Any() == false && string.IsNullOrWhiteSpace(model.ISSN) == false)
+                                    journals = journals.Where(j => j.Issn == model.ISSN);
+
+                                var journal = journals.SingleOrDefault();
+
+                                if (journal != null)
                                 {
-                                    Title = model.Title,
-                                    Issn = model.ISSN,
-                                    EIssn = model.EISSN,
-                                    Country = model.Country,
-                                    Publisher = model.Publisher
-                                }).Entity;
+                                    if (journal.Country is null && string.IsNullOrWhiteSpace(model.Country) == false)
+                                        journal.Country = model.Country;
 
-                                db.Set<Category>().Add(new Category
+                                    if (string.IsNullOrWhiteSpace(model.Category)) continue;
+
+                                    var isDuplicate = db.Query<Category>()
+                                        .Any(c => c.JournalId == journal.Id &&
+                                                  c.Index == JournalIndex.Scopus &&
+                                                  c.NormalizedTitle == model.Category.NormalizeTitle() &&
+                                                  c.Year == year);
+
+                                    if (isDuplicate) continue;
+
+                                    db.Set<Category>().Add(new Category
+                                    {
+                                        JournalId = journal.Id,
+                                        Year = year,
+                                        Title = model.Category,
+                                        NormalizedTitle = model.Category.NormalizeTitle(),
+                                        Index = JournalIndex.Scopus,
+                                        QRank = model.Rank,
+                                        If = null,
+                                        Mif = null,
+                                        Aif = null,
+                                        Type = null,
+                                        ISCRank = null,
+                                        IscClass = null,
+                                        Customer = "Jiro"
+                                    });
+
+                                    Console.WriteLine($"{model.Category} - {model.Rank}");
+                                }
+                                else
                                 {
-                                    Journal = newJournal,
-                                    Year = year,
-                                    Title = model.Category,
-                                    NormalizedTitle = model.Category.NormalizeTitle(),
-                                    Index = JournalIndex.Scopus,
-                                    QRank = model.Rank,
-                                    If = null,
-                                    Mif = null,
-                                    Aif = null,
-                                    Type = null,
-                                    ISCRank = null,
-                                    IscClass = null
-                                });
+                                    var newJournal = db.Set<Journal>().Add(new Journal
+                                    {
+                                        Title = model.Title,
+                                        NormalizedTitle = model.Title.NormalizeTitle(),
+                                        Issn = model.ISSN,
+                                        EIssn = model.EISSN,
+                                        Country = model.Country,
+                                        Publisher = model.Publisher
+                                    }).Entity;
 
-                                db.Save();
+                                    db.Set<Category>().Add(new Category
+                                    {
+                                        Journal = newJournal,
+                                        Year = year,
+                                        Title = model.Category,
+                                        NormalizedTitle = model.Category.NormalizeTitle(),
+                                        Index = JournalIndex.Scopus,
+                                        QRank = model.Rank,
+                                        If = null,
+                                        Mif = null,
+                                        Aif = null,
+                                        Type = null,
+                                        ISCRank = null,
+                                        IscClass = null,
+                                        Customer = "Jiro"
+                                    });
 
-                                Console.WriteLine(model.Category + " - " + model.Rank.ToString());
+                                    Console.WriteLine($"{model.Category} - {model.Rank}");
+                                }
+                                db.SaveChanges();
                             }
                         }
                     }
-
-                    db.Save();
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.Message);
+                    Console.WriteLine($"Error processing row: {ex.Message}");
                 }
-            }
+            });
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            Console.WriteLine($"Error reading file: {ex.Message}");
         }
     }
+
+
+    // public void ImportData(string filePath, int year)
+    // {
+    //     List<string> rows = new List<string>();
+    //     using var db = new AppDbContext();
+    //     try
+    //     {
+    //         using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read))
+    //         {
+    //             System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+    //
+    //             using (var reader = ExcelReaderFactory.CreateReader(stream))
+    //             {
+    //                 var result = reader.AsDataSet();
+    //                 var dataTable = result.Tables[0];
+    //
+    //                 foreach (DataRow row in dataTable.Rows)
+    //                 {
+    //                     string rowString = string.Join("", row.ItemArray);
+    //                     rows.Add(rowString);
+    //                 }
+    //             }
+    //         }
+    //
+    //         Parallel.ForEach(rows, new ParallelOptions() { MaxDegreeOfParallelism = 8 }, row =>
+    //         {
+    //             try
+    //             {
+    //                 if (string.IsNullOrWhiteSpace(row)) ;
+    //
+    //                 var sampleText = row.Replace('\"', ' ')
+    //                     .Replace("&amp;", "-")
+    //                     .Replace("&current;", "-");
+    //
+    //                 var lastIndex = sampleText.LastIndexOf(')');
+    //                 sampleText = sampleText.Substring(0, lastIndex + 1);
+    //
+    //                 string[] columns = sampleText.Split(';');
+    //
+    //                 if (columns[2] is null || columns[3] is null)
+    //                     return;
+    //
+    //                 if (columns[3].Trim().Equals("journal"))
+    //                 {
+    //                     List<string> catList = new();
+    //
+    //                     for (int i = 22; i <= columns.Length - 1; i++)
+    //                         catList.Add(columns[i]);
+    //                     using (var db = new AppDbContext())
+    //                     {
+    //                         db.Database.ExecuteSqlRaw("SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED");
+    //
+    //                         foreach (var category in catList)
+    //                         {
+    //                             string issn = null;
+    //                             string eIssn = null;
+    //
+    //                             var iisnText = columns[4].Trim().Replace("\"", "").Replace(" ", "");
+    //
+    //                             if (iisnText.Length >= 8)
+    //                             {
+    //                                 issn = iisnText.Substring(0, 8);
+    //                                 if (iisnText.Length == 16) eIssn = iisnText.Substring(8, 8);
+    //
+    //                                 if (iisnText.Length >= 16) eIssn = iisnText.Substring(iisnText.Length - 8, 8);
+    //                             }
+    //
+    //                             if (GetCategory(category) is null)
+    //                                 continue;
+    //
+    //                             var model = new DataItem
+    //                             {
+    //                                 Title = columns[2]?.Trim().Replace("\"", "").ConvertArabicToPersian(),
+    //                                 ISSN = issn?.Replace("-", "").CleanIssn(),
+    //                                 EISSN = eIssn?.Replace("-", "").CleanIssn(),
+    //                                 Index = JournalIndex.Scopus,
+    //                                 Category = GetCategory(category)?.Title.ConvertArabicToPersian(),
+    //                                 Rank = GetCategory(category)?.Rank,
+    //                                 Country = columns[18]?.Trim().Replace("\"", "").ConvertArabicToPersian(),
+    //                                 Publisher = columns[20]?.Trim().Replace("\"", "").ConvertArabicToPersian()
+    //                             };
+    //
+    //                             if (model.Title is null)
+    //                                 continue;
+    //
+    //                             var journals = db.Query<Journal>()
+    //                                 .Where(i => i.NormalizedTitle == model.Title.NormalizeTitle());
+    //
+    //                             if (string.IsNullOrWhiteSpace(model.ISSN) == false)
+    //                                 journals = journals.Where(i => i.Issn == model.ISSN);
+    //
+    //                             var journal = journals.SingleOrDefault();
+    //
+    //                             if (journal != null)
+    //                             {
+    //                                 if (string.IsNullOrWhiteSpace(model.Category))
+    //                                     continue;
+    //
+    //                                 var dup = db.Query<Category>()
+    //                                     .Where(i => i.JournalId == journal.Id)
+    //                                     .Where(i => i.Index == JournalIndex.Scopus)
+    //                                     .Where(i => i.NormalizedTitle.Equals(model.Category.NormalizeTitle()))
+    //                                     .Any(i => i.Year == year);
+    //
+    //                                 if (dup == true)
+    //                                     continue;
+    //
+    //                                 db.Set<Category>().Add(new Category
+    //                                 {
+    //                                     JournalId = journal.Id,
+    //                                     Year = year,
+    //                                     Title = model.Category,
+    //                                     NormalizedTitle = model.Category.NormalizeTitle(),
+    //                                     Index = JournalIndex.Scopus,
+    //                                     QRank = model.Rank,
+    //                                     If = null,
+    //                                     Mif = null,
+    //                                     Aif = null,
+    //                                     Type = null,
+    //                                     ISCRank = null,
+    //                                     IscClass = null,
+    //                                     Customer = "Jiro"
+    //                                 });
+    //
+    //                                 Console.WriteLine(model.Category + " - " + model.Rank);
+    //                             }
+    //                             else
+    //                             {
+    //                                 var newJournal = db.Set<Journal>().Add(new Journal
+    //                                 {
+    //                                     Title = model.Title,
+    //                                     NormalizedTitle = model.Title.NormalizeTitle(),
+    //                                     Issn = model.ISSN,
+    //                                     EIssn = model.EISSN,
+    //                                     Country = model.Country,
+    //                                     Publisher = model.Publisher
+    //                                 }).Entity;
+    //
+    //                                 db.Set<Category>().Add(new Category
+    //                                 {
+    //                                     Journal = newJournal,
+    //                                     Year = year,
+    //                                     Title = model.Category,
+    //                                     NormalizedTitle = model.Category.NormalizeTitle(),
+    //                                     Index = JournalIndex.Scopus,
+    //                                     QRank = model.Rank,
+    //                                     If = null,
+    //                                     Mif = null,
+    //                                     Aif = null,
+    //                                     Type = null,
+    //                                     ISCRank = null,
+    //                                     IscClass = null,
+    //                                     Customer = "Jiro"
+    //                                 });
+    //
+    //                                 Console.WriteLine(model.Category + " - " + model.Rank.ToString());
+    //                             }
+    //                         }
+    //
+    //                         db.Save();
+    //                     }
+    //                 }
+    //             }
+    //             catch (Exception ex)
+    //             {
+    //                 Console.WriteLine(ex.Message);
+    //             }
+    //         });
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Console.WriteLine(ex.Message);
+    //     }
+    // }
 
     public class CategoryModel
     {

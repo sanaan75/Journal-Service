@@ -4,19 +4,36 @@ using OfficeOpenXml;
 
 namespace Journal_Service;
 
-public class ISCHelper
+public class IscHelper
 {
-    public void InsertIsc(string filePath, int year)
+    public void ImportData(string filePath, int year)
     {
-        List<ISCModel> journals = ReadISCExcelFile(filePath);
-
+        List<IscModel> items = ReadISCExcelFile(filePath);
         using var db = new AppDbContext();
 
-        foreach (var item in journals)
+        foreach (var item in items)
         {
             var categories = item.Categories.Split(",");
-            var journal = db.Set<Journal>().FirstOrDefault(i =>
-                i.NormalizedTitle == item.Title.NormalizeTitle() || i.Issn == item.ISSN.CleanIssn());
+
+            var normalizeTitle = item.Title.NormalizeTitle();
+            var issn = item.ISSN.CleanIssn();
+            var eissn = item.EISSN.CleanIssn();
+
+            if (issn.Length > 8 || issn.Length < 8)
+                issn = string.Empty;
+            
+            if (eissn.Length > 8 || eissn.Length < 8)
+                eissn = string.Empty;
+            
+            var journals = db.Query<Journal>().Where(i => i.NormalizedTitle == normalizeTitle);
+
+            if (journals.Any() == false && string.IsNullOrWhiteSpace(issn) == false)
+                journals = journals.Where(i => i.Issn == issn);
+
+            if (journals.Any() == false && string.IsNullOrWhiteSpace(eissn) == false)
+                journals = journals.Where(i => i.EIssn == eissn);
+
+            var journal = journals.SingleOrDefault();
 
             try
             {
@@ -25,9 +42,9 @@ public class ISCHelper
                     var newJournal = db.Set<Journal>().Add(new Journal
                     {
                         Title = item.Title.ConvertArabicToPersian(),
-                        NormalizedTitle = item.Title.NormalizeTitle().ConvertArabicToPersian(),
-                        Issn = item.ISSN.CleanIssn(),
-                        EIssn = item.EISSN.CleanIssn()
+                        NormalizedTitle = normalizeTitle.ConvertArabicToPersian(),
+                        Issn = issn,
+                        EIssn = eissn
                     }).Entity;
 
                     foreach (var cat in categories)
@@ -65,9 +82,6 @@ public class ISCHelper
                 }
                 else
                 {
-                    journal.Issn = item.ISSN.CleanIssn();
-                    journal.EIssn = item.EISSN.CleanIssn();
-
                     foreach (var cat in categories)
                     {
                         var startIndex = cat.IndexOf('(');
@@ -84,7 +98,6 @@ public class ISCHelper
                         {
                             category = cat.Trim().ConvertArabicToPersian();
                         }
-
 
                         if (string.IsNullOrWhiteSpace(category))
                             continue;
@@ -128,9 +141,9 @@ public class ISCHelper
         }
     }
 
-    static List<ISCModel> ReadISCExcelFile(string filePath)
+    static List<IscModel> ReadISCExcelFile(string filePath)
     {
-        var list = new List<ISCModel>();
+        var list = new List<IscModel>();
 
         FileInfo fileInfo = new FileInfo(filePath);
         using (ExcelPackage package = new ExcelPackage(fileInfo))
@@ -140,7 +153,7 @@ public class ISCHelper
 
             for (int row = 2; row <= rowCount; row++)
             {
-                var journal = new ISCModel
+                var journal = new IscModel
                 {
                     Title = worksheet.Cells[row, 1].Text,
                     ISSN = worksheet.Cells[row, 2].Text,
@@ -173,7 +186,7 @@ public class ISCHelper
         }
     }
 
-    public class ISCModel
+    public class IscModel
     {
         public string Title { get; set; }
         public string ISSN { get; set; }

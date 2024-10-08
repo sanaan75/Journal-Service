@@ -24,9 +24,19 @@ public class Scopus2Helper
             if (item.ActiveState.Trim() == "Inactive" || item.Type.Trim() != "Journal")
                 continue;
 
-            var journal = db.Query<Journal>().FirstOrDefault(i =>
-                i.NormalizedTitle == item.Title.NormalizeTitle() || i.Issn == item.ISSN.CleanIssn() ||
-                i.EIssn == item.EISSN.CleanIssn());
+            var normalizeTitle = item.Title.NormalizeTitle();
+            var issn = item.ISSN.CleanIssn();
+            var eissn = item.EISSN.CleanIssn();
+
+            var journals = db.Set<Journal>().Where(i => i.NormalizedTitle == normalizeTitle);
+
+            if (string.IsNullOrWhiteSpace(issn) == false)
+                journals = journals.Where(i => i.Issn == issn);
+                
+            if (string.IsNullOrWhiteSpace(eissn) == false)
+                journals = journals.Where(i => i.EIssn == eissn);
+
+            var journal = journals.FirstOrDefault();
 
             var yearsText = item.Coverage.Split(";").FirstOrDefault();
 
