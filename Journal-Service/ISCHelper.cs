@@ -13,38 +13,36 @@ public class IscHelper
 
         foreach (var item in items)
         {
-            var categories = item.Categories.Split(",");
-
-            var normalizeTitle = item.Title.NormalizeTitle();
-            var issn = item.ISSN.CleanIssn();
-            var eissn = item.EISSN.CleanIssn();
-
-            if (issn.Length > 8 || issn.Length < 8)
-                issn = string.Empty;
-            
-            if (eissn.Length > 8 || eissn.Length < 8)
-                eissn = string.Empty;
-            
-            var journals = db.Query<Journal>().Where(i => i.NormalizedTitle == normalizeTitle);
-
-            if (journals.Any() == false && string.IsNullOrWhiteSpace(issn) == false)
-                journals = journals.Where(i => i.Issn == issn);
-
-            if (journals.Any() == false && string.IsNullOrWhiteSpace(eissn) == false)
-                journals = journals.Where(i => i.EIssn == eissn);
-
-            var journal = journals.SingleOrDefault();
-
             try
             {
+                var categories = item.Categories.Split(",");
+
+                var normalizeTitle = item.Title.NormalizeTitle();
+                var issn = item.ISSN.CleanIssn();
+                var eissn = item.EISSN.CleanIssn();
+
+                if (issn.Length > 8 || issn.Length < 8)
+                    issn = string.Empty;
+
+                if (eissn.Length > 8 || eissn.Length < 8)
+                    eissn = string.Empty;
+
+                var journals = db.Query<Journal>().Where(i => i.NormalizedTitle == normalizeTitle || i.Issn == issn);
+
+                if (journals.Any() == false && string.IsNullOrWhiteSpace(eissn) == false)
+                    journals = journals.Where(i => i.EIssn == eissn);
+
+                var journal = journals.SingleOrDefault();
+
+
                 if (journal is null)
                 {
                     var newJournal = db.Set<Journal>().Add(new Journal
                     {
                         Title = item.Title.ConvertArabicToPersian(),
                         NormalizedTitle = normalizeTitle.ConvertArabicToPersian(),
-                        Issn = issn,
-                        EIssn = eissn
+                        Issn = issn == String.Empty ? "-" : issn,
+                        EIssn = eissn == String.Empty ? "-" : eissn
                     }).Entity;
 
                     foreach (var cat in categories)
@@ -131,13 +129,14 @@ public class IscHelper
                 }
 
                 db.Save();
+
+
+                Console.WriteLine($"{item.Title}, {item.Categories}, {item.IF}, {item.ISSN}");
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
             }
-
-            Console.WriteLine($"{item.Title}, {item.Categories}, {item.IF}, {item.ISSN}");
         }
     }
 

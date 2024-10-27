@@ -1,16 +1,57 @@
 ﻿using Journal_Service;
+using Journal_Service.Data;
+using Journal_Service.Entities;
 using OfficeOpenXml;
 
 Console.WriteLine("start app");
 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-int year = 2018;
 
-var iscHelper = new IscHelper();
-string iscPath = @"D:\Jiro\Journals\isc\" + year + ".xlsx";
-iscHelper.ImportData(iscPath, year);
-Console.WriteLine("finish ISC " + year);
+using var db = new AppDbContext();
+// var setting = db.Set<Setting>().Single();
+//
+// var journalHelper = new JournalHelper();
+// journalHelper.FetchJournal(setting.Offset);
+// journalHelper.FetchJournalCountry();
+
+// for (int year = 2012; year <= 2022; year++)
+// {
+//     var iscHelper = new IscHelper();
+//     string iscPath = @"C:\Works\Jiro-Journals\isc\" + year + ".xlsx";
+//     iscHelper.ImportData(iscPath, year);
+//     Console.WriteLine("finish ISC " + year);
+// }
+
+// for (int year = 2014; year <= 2023; year++)
+// {
+//     var jcrHelper = new JCRHelper();
+//     string jcr_Path = @"C:\Works\Jiro-Journals\jcr\" + year + ".xlsx";
+//     jcrHelper.ImportData(jcr_Path, year);
+//
+//     var aif_Path = @"C:\Works\Jiro-Journals\jcr\" + year + "\\" + year + "-aif.xlsx";
+//     jcrHelper.InsertAif(aif_Path, year);
+// }
+
+int year = 2015;
+
+var scopusHelper = new ScopusHelper();
+string scopus_path = @"C:\Works\Jiro-Journals\scopus\" + year + "\\" + year + "-a.xlsx";
+scopusHelper.ImportData(scopus_path, year);
+
+string scopus_path2 = @"C:\Works\Jiro-Journals\scopus\" + year + "\\" + year + "-b.xlsx";
+scopusHelper.ImportData(scopus_path2, year);
+
+// string scopus_path3 = @"C:\Works\Jiro-Journals\scopus\" + year + "\\" + year + "-c.xlsx";
+// scopusHelper.ImportData(scopus_path3, year);
+
+// var vezaratinHelper = new VezaratinHelper();
+// vezaratinHelper.ImportData(@"C:\Works\Journals\vezaratin.xlsx");
+
+// var journalHelper = new JournalHelper();
+// string path = @"C:\Works\Journals\journal-countries.xlsx";
+// journalHelper.ImportCountries(path);
 
 Console.ReadKey();
+
 
 // jcr_Path = @"D:\Jiro\Journals\jcr\" + year + ".xlsx";
 // jcrHelper.ImportData(jcr_Path, year);
@@ -22,9 +63,6 @@ Console.ReadKey();
 // var vezaratinHelper = new VezaratinHelper();
 // vezaratinHelper.ImportData(@"D:\Jiro\Journals\vezaratin.xlsx");
 
-// var jcrHelper = new JCRHelper();
-// string jcr_Path = @"D:\Jiro\Journals\jcr\" + year + ".xlsx";
-// jcrHelper.ImportData(jcr_Path, year);
 
 // string aif_Path = @"D:\Jiro\Journals\jcr\" + year + "\\" + year + "-aif.xlsx";
 // jcrHelper.InsertAif(aif_Path, year);

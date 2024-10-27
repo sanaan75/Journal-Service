@@ -11,4 +11,5 @@ public class User : IEntity
 
     public bool Enabled { get; set; }
     public bool SysAdmin { get; set; }
+    public string Customer { get; set; }
 }

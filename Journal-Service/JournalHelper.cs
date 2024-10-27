@@ -30,18 +30,18 @@ public class JournalHelper
             if (string.IsNullOrWhiteSpace(item.Country) == true)
                 continue;
 
-            var journal = db.Set<Journal>().FirstOrDefault(i =>
-                item.Title.NormalizeTitle() == i.NormalizedTitle || i.Issn == item.Issn.CleanIssn());
+            var journal = db.Set<Journal>().FirstOrDefault(i => item.Title.NormalizeTitle() == i.NormalizedTitle || i.Issn == item.Issn.CleanIssn());
 
             if (journal is null)
                 continue;
 
-            journal.Country = item.Country.ToTitleCase();
-
-            Console.WriteLine(journal.Title + " -> " + journal.Country);
+            if (journal.Country != null)
+            {
+                journal.Country = item.Country.ToLower().Trim();
+                Console.WriteLine(journal.Title + " -> " + journal.Country);
+                db.Save();
+            }
         }
-
-        db.Save();
     }
 
     static List<CountryModel> ReadExcelFile(string filePath)
@@ -365,8 +365,14 @@ public class JournalHelper
                     issns.TryGetValue("print", out string Issn);
                     issns.TryGetValue("electronic", out string eissn);
 
-                    Issn = Issn.CleanIssn();
-                    eissn = eissn.CleanIssn();
+                    Issn = Issn.CleanIssn() ?? "-";
+                    eissn = eissn.CleanIssn() ?? "-";
+
+                    if (string.IsNullOrWhiteSpace(Issn) == true)
+                        Issn = "-";
+
+                    if (string.IsNullOrWhiteSpace(eissn) == true)
+                        eissn = "-";
 
                     var dupJournal = db.Query<Journal>()
                         .Any(i => i.NormalizedTitle == normalizedTitle || i.Issn == Issn);

@@ -29,16 +29,13 @@ public class VezaratinHelper
             var issn = item.ISSN.CleanIssn();
             var eissn = item.EISSN.CleanIssn();
 
-            var journals = db.Set<Journal>().Where(i => i.NormalizedTitle == normalizeTitle);
-
-            if (journals.Any() == false && string.IsNullOrWhiteSpace(issn) == false)
-                journals = journals.Where(i => i.Issn == issn);
+            var journals = db.Set<Journal>().Where(i => i.NormalizedTitle == normalizeTitle || i.Issn == issn);
 
             if (journals.Any() == false && string.IsNullOrWhiteSpace(eissn) == false)
                 journals = journals.Where(i => i.EIssn == eissn);
 
             var journal = journals.FirstOrDefault();
-            
+
             try
             {
                 if (journal is not null)

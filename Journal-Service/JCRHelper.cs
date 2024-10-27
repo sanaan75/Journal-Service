@@ -20,25 +20,22 @@ public class JCRHelper
                 if (string.IsNullOrWhiteSpace(item.Title) || string.IsNullOrWhiteSpace(item.Category) ||
                     item.IF is null)
                     return;
-
-                var normalizeTitle = item.Title.NormalizeTitle();
-                var categoryTitle = item.Category.Trim().ConvertArabicToPersian();
-                var categoryNormalizedTitle = item.Category.NormalizeTitle().ConvertArabicToPersian();
-                var issn = item.ISSN.CleanIssn();
-                var eissn = item.EISSN.CleanIssn();
-
-                var journals = db.Set<Journal>().Where(i => i.NormalizedTitle == normalizeTitle);
-
-                if (journals.Any() == false && string.IsNullOrWhiteSpace(issn) == false)
-                    journals = journals.Where(i => i.Issn == issn);
-
-                if (journals.Any() == false && string.IsNullOrWhiteSpace(eissn) == false)
-                    journals = journals.Where(i => i.EIssn == eissn);
-
-                var journal = journals.FirstOrDefault();
-
                 try
                 {
+                    var normalizeTitle = item.Title.NormalizeTitle();
+                    var categoryTitle = item.Category.Trim().ConvertArabicToPersian();
+                    var categoryNormalizedTitle = item.Category.NormalizeTitle().ConvertArabicToPersian();
+                    var issn = item.ISSN.CleanIssn();
+                    var eissn = item.EISSN.CleanIssn();
+
+                    var journals = db.Set<Journal>().Where(i => i.NormalizedTitle == normalizeTitle || i.Issn == issn);
+
+                    if (journals.Any() == false && string.IsNullOrWhiteSpace(eissn) == false)
+                        journals = journals.Where(i => i.EIssn == eissn);
+
+                    var journal = journals.FirstOrDefault();
+
+
                     decimal? rank = null;
                     if (string.IsNullOrWhiteSpace(item.JIFRank) == false)
                     {
@@ -57,8 +54,8 @@ public class JCRHelper
                             {
                                 Title = item.Title.ConvertArabicToPersian(),
                                 NormalizedTitle = normalizeTitle.ConvertArabicToPersian(),
-                                Issn = issn,
-                                EIssn = eissn
+                                Issn = issn == String.Empty ? "-" : issn,
+                                EIssn = eissn == String.Empty ? "-" : eissn
                             }).Entity;
 
                             db.Set<Category>().Add(new Category
